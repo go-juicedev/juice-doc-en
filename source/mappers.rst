@@ -1,16 +1,15 @@
-SQL mappers
-================
+SQL Mappers
+=============
 
-当我们将数据源信息配置好之后，我们就可以使用SQL Mapper来访问数据库了。 首先，我们得需要告诉juice去哪里找到我们的sql语句。
+After configuring the data source information, we can use SQL Mappers to access the database. First, we need to tell juice where to find our SQL statements.
 
-mappers标签
+mappers Tag
 ----------------
-
-mappers 是mapper标签的父标签，它是一个集合标签，用来存放mapper标签。
+The `mappers` tag is the parent tag for the `mapper` tags; it is a collection tag used to store multiple `mapper` tags.
 
 .. code-block:: xml
 
-   <?xml version="1.0" encoding="UTF-8"?>
+    <?xml version="1.0" encoding="UTF-8"?>
     <configuration>
         <environments default="prod">
             <environment id="prod">
@@ -18,112 +17,94 @@ mappers 是mapper标签的父标签，它是一个集合标签，用来存放map
                 <driver>mysql</driver>
             </environment>
         </environments>
-
         <mappers>
-
         </mappers>
     </configuration>
 
-
-mapper标签
+mapper Tag
 ----------------
-
-mapper标签是用来存储sql语句的集合标签。
-
-简单的例子：
+The `mapper` tag is a collection tag used to store SQL statements. Here’s a simple example:
 
 .. code-block:: xml
 
-   <mappers>
+    <mappers>
         <mapper namespace="main">
             <select id="HelloWorld">
                 select "hello world" as message
             </select>
         </mapper>
-
         <mapper resource="path_to_another_mapper.xml"/>
         <mapper url="http(s)://domain:port/path"/>
         <mapper url="file://path to your mapper"/>
-
     </mappers>
 
-- .. class:: namespace: 用来指定mapper的命名空间，这个命名空间是用来区分不同mapper的，它的值必须是一个唯一的。
-- .. class:: resource: 用来引用另外一个mapper文件，注意：引用的mapper文件如果没有再次引用别的文件，那么它的namespace属性是必须的。
-- .. class:: url: 通过url来引用mapper文件。目前支持http和file协议。如果引用的mapper文件没有再次引用别的文件，那么它的namespace属性是必须的。
+- .. class:: namespace: Used to specify the namespace of the mapper, which helps to differentiate between different mappers. The value must be unique.
+- .. class:: resource: Used to reference another mapper file. Note: the referenced mapper file must have a namespace attribute if it does not refer to another file.
+- .. class:: url: Used to reference a mapper file through a URL. Currently supports http and file protocols. If the referenced mapper file does not refer to another file, then its namespace attribute is mandatory.
 
-通过引用mapper文件，我们可以将sql语句分散到不同的文件中，这样可以使得我们的结构更加清晰。
+Using referenced mapper files allows us to distribute SQL statements across different files, making our structure clearer.
 
 .. attention::
-   namespace、resource、url三个属性是互斥的，一个mapper标签只能使用其中的一个。
+   The `namespace`, `resource`, and `url` attributes are mutually exclusive; only one can be used within a single mapper tag.
 
-
-select，insert，update，delete标签
+select, insert, update, delete Tags
 -----------------------------------
 
-select标签用来存储select语句。 select标签必须在mapper标签中才能使用。
+The `select` tag is used to store select statements and must be used within a mapper tag.
 
 .. code-block:: xml
 
-   <mapper namespace="main">
+    <mapper namespace="main">
         <select id="HelloWorld">
             select * from user
         </select>
-
         <insert id="insertUser">
             insert into user (name, age) values ("eatmoreapple", 18))
         </insert>
-
         <update id="updateUser">
             update user set age = 19 where name = "eatmoreapple"
         </update>
-
         <delete id="deleteUser">
             delete from user where name = "eatmoreapple"
         </delete>
     </mapper>
 
+The `select`, `insert`, `update`, and `delete` tags are collection tags for SQL statements. Each of them must have an `id` attribute, which is used to identify the SQL statement and must be unique within the same mapper.
 
-上述的 `select、insert、update、delete` 标签都是sql语句的集合标签，它们都有一个id属性，这个属性是用来标识sql语句的，它的值在同一个mapper中必须是唯一的。
+*Question: Can you write a delete statement inside the select tag?*
 
-*问：可不可以在 select 标签里面写 delete 语句呢？*
+*Answer: You can, but it is not recommended as each tag should have its own semantic meaning.*
 
-*答：可以，但不推荐，每个标签都要有自己的语义。*
-
-接受参数
+Using Parameters
 ----------------
 
-我们可以在我们的sql语句中使用参数，这些参数可以通过外部传递进来，我们只需要通过特定的语法来引用这些参数即可。
+We can use parameters in our SQL statements, which can be passed in from external sources. We just need to use specific syntax to reference these parameters.
 
-定义参数实例
-~~~~~~~~~~~~~~~~
+Parameter Example
+~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: xml
 
-   <mapper namespace="main">
+    <mapper namespace="main">
         <select id="CountUserByName">
             select count(*) from user where name = #{name}
         </select>
     </mapper>
 
-上述的sql语句中，我们使用了 ``#{name}`` 来引用参数，这个参数的值将会在执行sql语句的时候传递进来。
-
-``#{}`` 的语法会在运行时被替换成占位符，这样可以防止sql注入。但是，如果我们需要使用字符串拼接的方式来构造sql语句，那么我们就需要使用 ``${}`` 来引用参数了。
+In the above SQL statement, we use ``#{name}`` to reference a parameter. This parameter’s value will be passed in when executing the SQL statement. The ``#{}`` syntax is replaced by placeholders at runtime to prevent SQL injection. However, if we need to construct the SQL statement by concatenating strings, we'd use ``${}`` to reference the parameters.
 
 .. code-block:: xml
 
-   <mapper namespace="main">
+    <mapper namespace="main">
         <select id="CountUserByName">
             select count(*) from user where name = ${name}
         </select>
     </mapper>
 
-上述的sql语句中，我们使用了 ``${name}`` 来引用参数，这个参数的值将会在执行sql语句的时候传递进来。
+In this SQL statement, we use ``${name}`` to reference a parameter. The value of this parameter will be passed during the execution of the SQL statement. However, the ``${}`` syntax is not replaced by a placeholder, which can lead to SQL injection issues. Therefore, when using ``${}``, ensure the parameter value is secure.
 
-但是，``${}`` 的语法不会被替换成占位符，这样就会导致sql注入的问题。所以，我们在使用 ``${}`` 的时候，必须要保证参数的值是安全的。
-
-
-参数传递
-~~~~~~~~~~~~~~~~
+Parameter Passing
+~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: go
 
@@ -157,23 +138,16 @@ select标签用来存储select语句。 select标签必须在mapper标签中才�
             fmt.Println(err)
             return
         }
+
         fmt.Println(count)
     }
 
+As shown above, after creating the `engine`, we use `NewGenericManager` to create a `GenericManager`. This method accepts a generic parameter specifying the return type, which in this case is `int64`. Then, we use the `Object` method to specify the SQL statement we want to execute. This method accepts a parameter, in this instance, we pass the `CountUserByName`, which is a function under the main package and does not belong to any custom structure, so its full name is `main.CountUserByName`. In the XML configuration file, it searches for the `CountUserByName` id under the main namespace. We can also directly pass the SQL statement id we want to execute, like `main.CountUserByName`, when calling the `Object` method. Lastly, we use the `Query` method to execute the SQL statement, which accepts a parameter for the arguments to pass to the SQL statement.
 
+Map-Struct Parameters
+"""""""""""""""""""""""
 
-如上所示，我们在创建完 `engine` 之后, 使用 `NewGenericManager` 来创建一个 `GenericManager` , 这个方法接受一个泛型参数, 这个参数是用来指定返回值的类型的, 这里我们指定的是 ``int64`` 。然后，我们使用 `Object` 方法来指定我们要执行的sql语句，这个方法接受一个参数，这里我们传入了 `CountUserByName` 这个函数，因为 `CountUserByName` 这个函数在main包下，并且它不属于任何自定义结构，所以它的全名就是 `main.CountUserByName` 。
-
-对应到xml配置文件中，它就会去找main这个命名空间下的 `CountUserByName` 这个id。当然，我们也可以在直接调用 `Object` 方法的时候，传入一个字符串，这个字符串就是我们要执行的sql语句的id，如 `main.CountUserByName` 。
-
-最后，我们使用 `Query` 方法来执行sql语句，这个方法接受一个参数，这个参数就是我们要传递给sql语句的参数。
-
-map-struct参数
-"""""""""""""""
-
-如上所示，我们传递了一个 `map`，这个 `map` 的key就是我们在sql语句中使用的参数名，这个map的value就是我们要传递给sql语句的参数值。当然我们也可以传递一个struct，这个struct的字段名就是我们在sql语句中使用的参数名，这个struct的字段值就是我们要传递给sql语句的参数值。
-
-如果我们想自定义struct的字段名和sql语句中的参数名不一致，那么我们可以使用juice的tag来指定，如下所示：
+As shown, we passed a `map` where the map's key is the parameter name used in the SQL statement, and its value is the argument to pass to the SQL statement. Alternatively, we can pass a struct, and the struct’s field names would be the parameter names used in the SQL statement, with the field values being the argument values. If we want to customize so the struct field names do not match the SQL parameter names directly, we can use juice's tag to specify:
 
 .. code-block:: go
 
@@ -181,21 +155,15 @@ map-struct参数
         Name string `param:"name"`
     }
 
-指定结构体字段的tag为param，那么这个字段就会被当作sql语句中的参数名，而不是字段名。
-
+By specifying the struct field’s tag as `param`, that field will be treated as the SQL parameter name, not the field name.
 
 .. attention::
-    当你的参数是一个map的时候，这个map的key必须是string类型的。
+   When passing a map as an argument, the map's key must be a string type.
 
-非map-struct的参数传递
-"""""""""""""""""""""""
+Non-Map-Struct Parameter Passing
+"""""""""""""""""""""""""""""""""
 
-既然map和struct都可以转换成key-value结构，那么如果我们传递一个非struct的参数或者非map的参数，那么这个参数传递到xml中的key是什么呢？
-
-这个时候，juice就会将这个参数包装成一个 `map`，这个 `map` 的key就是 ``param`` ，这个 `map` 的value就是我们传递的参数。
-
-
-如下所示：
+Since both maps and structs can be converted into a key-value structure, what is the key used in the XML if we pass a non-struct or non-map parameter? Juice will then wrap this parameter in a `map`, where the `map`'s key is ``param``, and its value is our passed parameter.
 
 .. code-block:: go
 
@@ -209,7 +177,7 @@ map-struct参数
         </select>
     </mapper>
 
-包装的 `map` 的key也是可以自定义的，我们可以在对应的action标签上，使用 ``paramName`` 属性来指定，如下所示：
+The wrapped `map`'s key can also be customized. We can specify the `paramName` attribute in the corresponding action tag, as shown:
 
 .. code-block:: xml
 
@@ -219,19 +187,12 @@ map-struct参数
         </select>
     </mapper>
 
-
-或者通过环境变量 ``JUICE_PARAM_NAME`` 来设置。
-
+or via the environment variable ``JUICE_PARAM_NAME``.
 
 H
 """""
 
-``juice.H`` 是一个 ``map[string]interface{}`` 的别名。用来方便开发者传递参数。
-
+``juice.H`` is an alias for ``map[string]interface{}``. It's designed to help developers pass parameters conveniently.
 
 .. attention::
-    请确保你传递的参数是可被序列化的，否则会导致部分功能异常，如缓存。
-
-
-
-
+   Please ensure the arguments you pass are serializable, or it could cause some features to malfunction, such as caching.
