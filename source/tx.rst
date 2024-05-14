@@ -1,135 +1,116 @@
-事务
-========
+Transactions
+============
 
-我们在操作数据库的时候，经常会遇到事务的问题，比如说，我们在操作数据库的时候，需要对多个表进行操作，这时候，我们就需要使用事务来保证数据的一致性。
+When working with databases, we often encounter transactions, such as when we need to manipulate multiple tables simultaneously. In such cases, we use transactions to ensure data consistency.
 
-那么在 ``juice`` 中，我们是如何使用事务的呢？
-
-首先我们回顾一下我们之前的用法:
+How do we use transactions in ``juice``? Let's review our previous usage first:
 
 .. code-block:: go
+   cfg, err := juice.NewXMLConfiguration("config.xml")
+   if err != nil {
+       panic(err)
+   }
+   engine, err := juice.DefaultEngine(cfg)
+   if err != nil {
+       panic(err)
+   }
 
-	cfg, err := juice.NewXMLConfiguration("config.xml")
+   engine.Object("your object")..QueryContext(context.Background(), nil)
+   juice.NewGenericManager[User](engine).Object("your object").QueryContext(context.Background(), nil)
 
-	if err != nil {
-		panic(err)
-	}
+In the above code, we see that we operate through the ``engine``, which obtains a connection from the database connection pool, performs operations, and then returns the connection back to the pool.
 
-	engine, err := juice.DefaultEngine(cfg)
-
-	if err != nil {
-		panic(err)
-	}
-
-	engine.Object("your object").Query(nil)
-
-	juice.NewGenericManager[User](engine).Object("your object").Query(nil)
-
-
-在上面的代码中，我们可以看到，我们都是通过 ``engine`` 来进行操作的，``engine`` 会从数据库的连接池中获取一个连接，然后进行操作，操作完毕后，会将连接放回连接池中。
-
-那么，如果我们需要使用事务，我们该如何操作呢？
+So, how do we handle transactions? Let’s find out.
 
 Manager
 -------
 
-通过查看 ``NewGenericManager`` 的源码，我们可以看到，它接受的参数都是一个名为 ``Manager`` 的接口。
-
-Manager 接口的定义如下:
+From inspecting the source code of ``NewGenericManager``, we see that it accepts a parameter named ``Manager``. The definition of the Manager interface is as follows:
 
 .. code-block:: go
 
-	// Manager is an interface for managing database operations.
-	type Manager interface {
-		Object(v any) Executor
-	}
+   // Manager is an interface for managing database operations.
+   type Manager interface {
+       Object(v any) Executor
+   }
 
-我们上面使用的 ``engine`` 就是一个实现了 ``Manager`` 接口的结构体。
+The ``engine`` we used above is a structure that implements the ``Manager`` interface.
 
-开启事务
---------
+Initiating Transactions
+-----------------------
 
-我们可以通过 ``engine.Tx()`` 来开启一个事务，它会返回一个 ``Manager`` 接口的实现，我们可以通过这个实现来进行事务的操作。
+We can initiate a transaction using ``engine.Tx()``, which returns an implementation of the ``Manager`` interface that we can use to perform transaction operations. Note that the transaction starts as soon as you call ``engine.Tx()``.
 
-注意，当调用 ``engine.Tx()`` 事务就已经开启了。
-
-我们可以通过 ``engine.Tx()`` 返回的事务对象来进行事务的操作。
-
-如上面的示例我们可以这样写:
+We can conduct transactional operations using the transaction object returned by ``engine.Tx()``. Here’s how we might write it:
 
 .. code-block:: go
 
-	cfg, err := juice.NewXMLConfiguration("config.xml")
+   cfg, err := juice.NewXMLConfiguration("config.xml")
+   if err != nil {
+       panic(err)
+   }
+   engine, err := juice.DefaultEngine(cfg)
+   if err != nil {
+       panic(err)
+   }
 
-	if err != nil {
-		panic(err)
-	}
+   tx := engine.Tx()
+   defer tx.Rollback()
 
-	engine, err := juice.DefaultEngine(cfg)
+   {
+       tx.Object("your object").QueryContext(context.Background(), nil)
+   }
+   {
+       juice.NewGenericManager[User](tx).Object("your object").QueryContext(context.Background(), nil)
+   }
 
-	if err != nil {
-		panic(err)
-	}
+   tx.Commit()
 
-	tx := engine.Tx()
+In the example above, we switch the ``Manager`` from ``engine`` to ``tx``, and all operations happen within a transaction. We use ``tx`` to manage the transaction. When we need to commit the transaction, we call ``tx.Commit()``, and if we need to roll it back, we call ``tx.Rollback()``.
 
-	defer tx.Rollback()
+Note, once we call either ``tx.Commit()`` or ``tx.Rollback()``, the transaction ends, and we must not attempt to perform any more operations on it.
 
-	{
-		tx.Object("your object").Query(nil)
-	}
+If nested transactions are required, we can initiate them by making multiple calls to ``engine.Tx()``, but ensure after each call you terminate the transaction using either ``tx.Rollback()`` or ``tx.Commit()``, or your transaction will remain open.
 
-	{
-		juice.NewGenericManager[User](tx).Object("your object").Query(nil)
-	}
+Isolation Levels
+----------------
 
-	tx.Commit()
-
-在上面的示例中，我们可以看到，我们将 ``Manager`` 由 ``engine`` 改成 ``tx`` 之后，上面的操作都会在一个事务中进行了，我们就通过 ``tx`` 来进行事务的操作，当我们需要提交事务的时候，我们调用 ``tx.Commit()`` 来提交事务，如果我们需要回滚事务，我们调用 ``tx.Rollback()`` 来回滚事务。
-
-注意，当我们调用 ``tx.Commit()`` 或者 ``tx.Rollback()`` 之后，事务就已经结束了，我们不能再对事务进行操作了。
-
-如果你需要使用嵌套事务，多次调用 ``engine.Tx()`` 来开启事务，但是需要注意的是，你需要在每次调用 ``engine.Tx()`` 之后，都要调用 ``tx.Rollback()`` 或者 ``tx.Commit()`` 来终止事务，否则你的事务会一直处于开启状态。
-
-
-隔离级别
-----------
-
-在go官方的database/sql包里面提供了对事务隔离级别的控制
+The official Go package database/sql provides controls for transaction isolation levels:
 
 .. code-block:: go
 
-	// IsolationLevel is the transaction isolation level used in TxOptions.
-	type IsolationLevel int
+   // IsolationLevel is the transaction isolation level used in TxOptions.
+   type IsolationLevel int
 
-	// Various isolation levels that drivers may support in BeginTx.
-	// If a driver does not support a given isolation level an error may be returned.
-	//
-	// See https://en.wikipedia.org/wiki/Isolation_(database_systems)#Isolation_levels.
-	const (
-		LevelDefault IsolationLevel = iota
-		LevelReadUncommitted
-		LevelReadCommitted
-		LevelWriteCommitted
-		LevelRepeatableRead
-		LevelSnapshot
-		LevelSerializable
-		LevelLinearizable
-	)
+   // Various isolation levels that drivers may support in BeginTx.
+   // If a driver does not support a given isolation level an error may be returned.
+   //
+   // See https://en.wikipedia.org/wiki/Isolation_(database_systems)#Isolation_levels.
+   const (
+       LevelDefault IsolationLevel = iota
+       LevelReadUncommitted
+       LevelReadCommitted
+       LevelWriteCommitted
+       LevelRepeatableRead
+       LevelSnapshot
+       LevelSerializable
+       LevelLinearizable
+   )
 
-	// TxOptions holds the transaction options to be used in DB.BeginTx.
-	type TxOptions struct {
-		// Isolation is the transaction isolation level.
-		// If zero, the driver or database's default level is used.
-		Isolation IsolationLevel
-		ReadOnly  bool
-	}
+   // TxOptions holds the transaction options to be used in DB.BeginTx.
+   type TxOptions struct {
+       // Isolation is the transaction isolation level.
+       // If zero, the driver or database's default level is used.
+       Isolation IsolationLevel
+       ReadOnly  bool
+   }
 
-	func (db *DB) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) 
+   func (db *DB) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error)
 
-
-在juice中也提供了这样的功能
+``juice`` also provides similar functionality:
 
 .. code-block:: go
 
-	func (e *Engine) ContextTx(ctx context.Context, opt *sql.TxOptions) TxManager
+   func (e *Engine) ContextTx(ctx context.Context, opt *sql.TxOptions) TxManager
+
+This also allows for configuration of transactions in ``juice``, providing similar capabilities and controls for transaction management as seen in the Go standard library.
