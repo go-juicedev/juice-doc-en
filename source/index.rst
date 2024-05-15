@@ -9,7 +9,7 @@ If you are a Golang developer or searching for an easy-to-use SQL mapper framewo
 
 Project Homepage
 ------------------------------
-http://github.com/eatmoreapple
+http://github.com/eatmoreapple/juice
 
 Features
 ------------------------------
