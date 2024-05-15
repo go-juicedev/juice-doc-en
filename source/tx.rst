@@ -15,7 +15,7 @@ How do we use transactions in ``juice``? Let's review our previous usage first:
        panic(err)
    }
 
-   engine.Object("your object")..QueryContext(context.Background(), nil)
+   engine.Object("your object").QueryContext(context.Background(), nil)
    juice.NewGenericManager[User](engine).Object("your object").QueryContext(context.Background(), nil)
 
 In the above code, we see that we operate through the ``engine``, which obtains a connection from the database connection pool, performs operations, and then returns the connection back to the pool.
@@ -49,7 +49,7 @@ We can conduct transactional operations using the transaction object returned by
    if err != nil {
        panic(err)
    }
-   engine, err := juice.DefaultEngine(cfg)
+   engine, err := juice.Default(cfg)
    if err != nil {
        panic(err)
    }
