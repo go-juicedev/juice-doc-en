@@ -95,17 +95,30 @@ After calling the ``Object`` method, it returns an ``Executor`` object. The defi
 
 .. code-block:: go
 
-   // Executor is an executor of SQL operations.
-   type Executor interface {
-       QueryContext(ctx context.Context, param interface{}) (*sql.Rows, error)
-       ExecContext(ctx context.Context, param interface{}) (sql.Result, error)
-       Statement() Statement
-   }
+       // GenericExecutor is a generic executor.
+       type GenericExecutor[T any] interface {
+       	// QueryContext executes the query and returns the direct result.
+       	// The args are for any placeholder parameters in the query.
+       	QueryContext(ctx context.Context, param Param) (T, error)
 
-   * ``QueryContext``: Accepts a ``context.Context`` and a parameter to perform a query operation, returning an ``sql.Rows`` object and an ``error``.
-   * ``ExecContext``: Accepts a ``context.Context`` and a parameter to perform a non-query operation, returning a ``sql.Result`` object and an ``error``.
-   * ``Statement``: Returns the current statement object.
+       	// ExecContext executes a query without returning any rows.
+       	// The args are for any placeholder parameters in the query.
+       	ExecContext(ctx context.Context, param Param) (sql.Result, error)
 
-Since we are performing a query operation, we use the ``Query`` method, and since our SQL statement doesn't have parameters, we pass in ``nil``. After obtaining the ``sql.Rows``, we can use the methods of ``sql.Rows`` to traverse through the query results, and finally close the ``sql.Rows``.
+       	// Statement returns the xmlSQLStatement of the current executor.
+       	Statement() Statement
+
+       	// Session returns the session of the current executor.
+       	Session() Session
+
+       	// Driver returns the driver of the current executor.
+       	Driver() driver.Driver
+       }
+
+       // Executor defines the interface of the executor.
+       type Executor GenericExecutor[*sql.Rows]
+
+
+Since we are performing a query operation, we use the ``QueryContext`` method, and since our SQL statement doesn't have parameters, we pass in ``nil``. After obtaining the ``sql.Rows``, we can use the methods of ``sql.Rows`` to traverse through the query results, and finally close the ``sql.Rows``.
 
 This method is similar to the use of the database/sql package, so if you're familiar with the database/sql package, you should find it easy to get started.
