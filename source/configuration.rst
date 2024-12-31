@@ -49,7 +49,7 @@ Once the environment is configured, we can use the database connection provided 
 
     import (
       "fmt"
-      "github.com/eatmoreapple/juice"
+      "github.com/go-juicedev/juice"
       _ "github.com/go-sql-driver/mysql"
     )
 

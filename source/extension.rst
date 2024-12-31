@@ -21,7 +21,7 @@ With the addition of the `embed` package in the Go 1.16 standard library, develo
     import (
         "embed"
         "fmt"
-        "github.com/eatmoreapple/juice"
+        "github.com/go-juicedev/juice"
     )
 
     //go:embed config.xml
@@ -62,7 +62,7 @@ As shown above, the file structure should be organized accordingly. You only nee
     import (
         "embed"
         "fmt"
-        "github.com/eatmoreapple/juice"
+        "github.com/go-juicedev/juice"
     )
 
     //go:embed config

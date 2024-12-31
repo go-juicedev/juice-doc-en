@@ -9,7 +9,7 @@ If you are a Golang developer or searching for an easy-to-use SQL mapper framewo
 
 Project Homepage
 ------------------------------
-http://github.com/eatmoreapple/juice
+http://github.com/go-juicedev/juice
 
 Features
 ------------------------------
@@ -27,11 +27,11 @@ Installation
 ------------------------------
 **Requirements**
 
-- go 1.20+
+- go 1.23+
 
 .. code-block:: bash
 
-    go get -u github.com/eatmoreapple/juice
+    go get -u github.com/go-juicedev/juice
 
 Quick Start
 ------------------------------
@@ -69,7 +69,7 @@ Quick Start
     import (
         "context"
         "fmt"
-        "github.com/eatmoreapple/juice"
+        "github.com/go-juicedev/juice"
         _ "github.com/go-sql-driver/mysql"
     )
 

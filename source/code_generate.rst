@@ -8,7 +8,7 @@ Installing juicecli
 
 .. code-block:: shell
 
-    go install github.com/eatmoreapple/juice/juicecli@latest
+    go install github.com/go-juicedev/juice/juicecli@latest
 
 After completion, type `juicecli` in the terminal to verify if the installation is successful.
 
@@ -34,7 +34,7 @@ Typically, when operating on a database, we first define an interface.
     import (
       "context"
       "database/sql"
-      "github.com/eatmoreapple/juice"
+      "github.com/go-juicedev/juice"
       _ "github.com/go-sql-driver/mysql"
     )
 
@@ -98,7 +98,7 @@ After executing the above command, a file named `user_repo.go` will appear in th
     import (
       "context"
       "database/sql"
-      "github.com/eatmoreapple/juice"
+      "github.com/go-juicedev/juice"
     )
 
     type UserRepositoryImpl struct{}
@@ -147,7 +147,7 @@ Complete the code we just started.
       "context"
       "database/sql"
       "fmt"
-      "github.com/eatmoreapple/juice"
+      "github.com/go-juicedev/juice"
       _ "github.com/go-sql-driver/mysql"
     )
 

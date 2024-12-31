@@ -65,7 +65,7 @@ By default, `juice`’s cache resides in the memory of the current process. To u
         return mycacheImpl{}
     }) // note: returns a new cache implementation.
 
-`juice` also provides a Redis cache implementation. Please visit ``https://github.com/eatmoreapple/juice-cache`` for usage details.
+`juice` also provides a Redis cache implementation. Please visit ``https://github.com/go-juicedev/juice-cache`` for usage details.
 
 .. attention::
 
