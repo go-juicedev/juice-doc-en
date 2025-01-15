@@ -80,6 +80,50 @@ Once the environment is configured, we can use the database connection provided 
 
    By default, juice only connects to the ``environment`` specified by the ``default`` attribute within ``environments``.
 
+
+Database Environment Switching
+--------------------------------
+
+By default, juice only connects to the environment specified by the ``default`` attribute in ``environments``.
+
+When multiple data sources are configured, developers need to manually switch between them.
+
+.. code-block:: xml
+
+    <?xml version="1.0" encoding="UTF-8"?>
+        <configuration>
+            <environments default="master">
+
+                <environment id="master">
+                    <dataSource>root:qwe123@tcp(localhost:3306)/database</provider>
+                    <driver>mysql</driver>
+                </environment>
+
+                <environment id="slave1">
+                    <dataSource>root:qwe123@tcp(localhost:3307)/database</provider>
+                    <driver>mysql</driver>
+                </environment>
+
+                <environment id="slave2">
+                    <dataSource>root:qwe123@tcp(localhost:3308)/database</provider>
+                    <driver>mysql</driver>
+                </environment>
+
+            </environments>
+        </configuration>
+
+
+As shown above, we have configured three environments, with ``master`` as the default environment.
+
+When we want to switch to the ``slave1`` environment:
+
+.. code-block:: go
+
+    engine, _ := juice.New(cfg)
+
+    slave1Engine, err := engine.With("slave1")
+
+
 Provider
 --------
 
