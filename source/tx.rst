@@ -1,116 +1,148 @@
-Transactions
-============
+Transaction Management
+========
 
-When working with databases, we often encounter transactions, such as when we need to manipulate multiple tables simultaneously. In such cases, we use transactions to ensure data consistency.
+Overview
+----
 
-How do we use transactions in ``juice``? Let's review our previous usage first:
+Transactions are the basic unit of database operations, used to ensure data consistency and integrity. Juice provides comprehensive transaction support, including basic transaction operations, nested transactions, and isolation level control.
 
-.. code-block:: go
-   cfg, err := juice.NewXMLConfiguration("config.xml")
-   if err != nil {
-       panic(err)
-   }
-   engine, err := juice.DefaultEngine(cfg)
-   if err != nil {
-       panic(err)
-   }
-
-   engine.Object("your object").QueryContext(context.Background(), nil)
-   juice.NewGenericManager[User](engine).Object("your object").QueryContext(context.Background(), nil)
-
-In the above code, we see that we operate through the ``engine``, which obtains a connection from the database connection pool, performs operations, and then returns the connection back to the pool.
-
-So, how do we handle transactions? Let’s find out.
-
-Manager
+Transaction Interfaces
 -------
 
-From inspecting the source code of ``NewGenericManager``, we see that it accepts a parameter named ``Manager``. The definition of the Manager interface is as follows:
+Juice defines two core interfaces to handle transactions:
 
 .. code-block:: go
 
-   // Manager is an interface for managing database operations.
-   type Manager interface {
-       Object(v any) Executor
-   }
+    // Manager interface defines basic database operations
+    type Manager interface {
+        Object(v any) Executor
+    }
 
-The ``engine`` we used above is a structure that implements the ``Manager`` interface.
+    // TxManager interface extends Manager, adding transaction control methods
+    type TxManager interface {
+        Manager
+        Begin() error
+        Commit() error
+        Rollback() error
+    }
 
-Initiating Transactions
------------------------
+Basic Transaction Operations
+----------
 
-We can initiate a transaction using ``engine.Tx()``, which returns an implementation of the ``Manager`` interface that we can use to perform transaction operations. Note that the transaction starts as soon as you call ``engine.Tx()``.
-
-We can conduct transactional operations using the transaction object returned by ``engine.Tx()``. Here’s how we might write it:
-
-.. code-block:: go
-
-   cfg, err := juice.NewXMLConfiguration("config.xml")
-   if err != nil {
-       panic(err)
-   }
-   engine, err := juice.Default(cfg)
-   if err != nil {
-       panic(err)
-   }
-
-   tx := engine.Tx()
-   defer tx.Rollback()
-
-   {
-       tx.Object("your object").QueryContext(context.Background(), nil)
-   }
-   {
-       juice.NewGenericManager[User](tx).Object("your object").QueryContext(context.Background(), nil)
-   }
-
-   tx.Commit()
-
-In the example above, we switch the ``Manager`` from ``engine`` to ``tx``, and all operations happen within a transaction. We use ``tx`` to manage the transaction. When we need to commit the transaction, we call ``tx.Commit()``, and if we need to roll it back, we call ``tx.Rollback()``.
-
-Note, once we call either ``tx.Commit()`` or ``tx.Rollback()``, the transaction ends, and we must not attempt to perform any more operations on it.
-
-If nested transactions are required, we can initiate them by making multiple calls to ``engine.Tx()``, but ensure after each call you terminate the transaction using either ``tx.Rollback()`` or ``tx.Commit()``, or your transaction will remain open.
-
-Isolation Levels
-----------------
-
-The official Go package database/sql provides controls for transaction isolation levels:
+Example code shows how to use transactions:
 
 .. code-block:: go
 
-   // IsolationLevel is the transaction isolation level used in TxOptions.
-   type IsolationLevel int
+    engine, err := juice.Default(cfg)
+    if err != nil {
+        panic(err)
+    }
 
-   // Various isolation levels that drivers may support in BeginTx.
-   // If a driver does not support a given isolation level an error may be returned.
-   //
-   // See https://en.wikipedia.org/wiki/Isolation_(database_systems)#Isolation_levels.
-   const (
-       LevelDefault IsolationLevel = iota
-       LevelReadUncommitted
-       LevelReadCommitted
-       LevelWriteCommitted
-       LevelRepeatableRead
-       LevelSnapshot
-       LevelSerializable
-       LevelLinearizable
-   )
+    // Start transaction
+    tx := engine.Tx()
+    if err := tx.Begin(); err != nil {
+        panic(err)
+    }
 
-   // TxOptions holds the transaction options to be used in DB.BeginTx.
-   type TxOptions struct {
-       // Isolation is the transaction isolation level.
-       // If zero, the driver or database's default level is used.
-       Isolation IsolationLevel
-       ReadOnly  bool
-   }
+    // Ensure transaction will eventually be rolled back or committed
+    defer tx.Rollback()
 
-   func (db *DB) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error)
+    // Operations within transaction
+    {
+        // Query operations
+        result1, err := tx.Object("QueryUser").
+            QueryContext(context.TODO(), nil)
+        if err != nil {
+            return err
+        }
 
-``juice`` also provides similar functionality:
+        // Use generic manager
+        result2, err := juice.NewGenericManager[User](tx).
+            Object("CreateUser").
+            QueryContext(context.TODO(), param)
+        if err != nil {
+            return err
+        }
+    }
+
+    // Commit transaction
+    return tx.Commit()
+
+.. note::
+    Transaction usage recommendations:
+
+    1. Always use defer tx.Rollback()
+    2. Check all errors before committing
+    3. Do not use the transaction object after completion
+
+Nested Transactions
+-------
+
+Juice supports nested transactions, but proper management is required:
 
 .. code-block:: go
 
-   func (e *Engine) ContextTx(ctx context.Context, opt *sql.TxOptions) TxManager
+    tx1 := engine.Tx()
+    if err := tx1.Begin(); err != nil {
+        return err
+    }
+    defer tx1.Rollback()
 
-This also allows for configuration of transactions in ``juice``, providing similar capabilities and controls for transaction management as seen in the Go standard library.
+    // Nested transaction
+    tx2 := engine.Tx()
+    if err := tx2.Begin(); err != nil {
+        return err
+    }
+    defer tx2.Rollback()
+
+    // Inner transaction operations
+    if err := tx2.Commit(); err != nil {
+        return err
+    }
+
+    // Outer transaction operations
+    return tx1.Commit()
+
+.. attention::
+    Nested transaction considerations:
+
+    1. Each transaction object needs to be properly closed
+    2. Follow the first-opened-last-closed principle
+    3. Pay attention to dependencies between transactions
+
+Isolation Level Control
+----------
+
+Juice supports complete transaction isolation level control, consistent with the ``database/sql`` package:
+
+.. code-block:: go
+
+    // Supported isolation levels
+    const (
+        LevelDefault         sql.IsolationLevel = iota
+        LevelReadUncommitted
+        LevelReadCommitted
+        LevelWriteCommitted
+        LevelRepeatableRead
+        LevelSnapshot
+        LevelSerializable
+        LevelLinearizable
+    )
+
+Usage example:
+
+.. code-block:: go
+
+    // Start transaction with specific isolation level
+    tx := engine.ContextTx(ctx, &sql.TxOptions{
+        Isolation: sql.LevelSerializable,
+        ReadOnly:  false,
+    })
+    if err := tx.Begin(); err != nil {
+        return err
+    }
+    defer tx.Rollback()
+
+    // Transaction operations...
+
+    return tx.Commit()

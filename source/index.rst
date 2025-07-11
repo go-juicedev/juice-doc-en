@@ -9,25 +9,35 @@ If you are a Golang developer or searching for an easy-to-use SQL mapper framewo
 
 Project Homepage
 ------------------------------
-http://github.com/go-juicedev/juice
+
+https://github.com/go-juicedev/juice
+
+**Documentation Links**
+
+- English: https://juice-doc.readthedocs.io/projects/juice-doc-en/en/latest/
+- 简体中文: https://juice-doc.readthedocs.io/en/latest/
 
 Features
 ------------------------------
-- Lightweight, high performance, no third-party dependencies
-- Dynamic SQL
-- Support for multiple data sources
-- Generic result set mapping
-- Middleware
-- Custom expressions
-- Custom functions
-- Hot updates
-- Code generation
+
+- 🚀 Lightweight, high performance, no third-party dependencies
+- 🔧 Dynamic SQL support for flexible complex query construction
+- 🗄️ Multi-datasource support with master-slave database switching
+- 🎯 Generic result set mapping with type safety
+- 🔗 Middleware mechanism with extensible architecture
+- 📝 Custom expressions and functions
+- 🛠️ Code generation tools
+- 🔒 Transaction management
+- 🔍 SQL debugging and performance monitoring
+- 📊 Multiple database support (MySQL, PostgreSQL, SQLite, Oracle)
+- 🔧 Connection pool management
 
 Installation
 ------------------------------
+
 **Requirements**
 
-- go 1.23+
+- go 1.24+
 
 .. code-block:: bash
 
@@ -35,6 +45,7 @@ Installation
 
 Quick Start
 ------------------------------
+
 1. Write SQL mapper configuration file
 
 .. code-block:: xml
@@ -47,6 +58,7 @@ Quick Start
                 <driver>mysql</driver>
             </environment>
         </environments>
+
         <mappers>
             <mapper namespace="main">
                 <select id="HelloWorld">
@@ -70,6 +82,7 @@ Quick Start
         "context"
         "fmt"
         "github.com/go-juicedev/juice"
+
         _ "github.com/go-sql-driver/mysql"
     )
 
@@ -87,19 +100,21 @@ Quick Start
             fmt.Println(err)
             return
         }
+        defer engine.Close()
 
         message, err := juice.NewGenericManager[string](engine).Object(HelloWorld).QueryContext(context.Background(), nil)
         if err != nil {
             fmt.Println(err)
             return
         }
-
         fmt.Println(message)
     }
 
 .. attention::
 
-    Note: Although `juice` does not rely on third-party libraries, it does require a database driver. For example, if you want to use MySQL, you need to install `github.com/go-sql-driver/mysql` first. If you encounter errors, it might be because your database is not running, or there is a mistake in your database configuration. Check your database configuration is correct.
+    Note: Although `juice` does not rely on third-party libraries, it does require a database driver. For example, if you want to use MySQL, you need to install `github.com/go-sql-driver/mysql` first. 
+    
+    If you encounter errors, it might be because your database is not running, or there is a mistake in your database configuration. Check your database configuration is correct.
 
 3. Run the code
 
@@ -111,25 +126,36 @@ Quick Start
 
 .. code-block:: bash
 
-    [juice] 2022/11/05 19:56:49 [main.HelloWorld] select "hello world" as message 5.3138ms hello world
+    [juice] 2022/11/05 19:56:49 [main.HelloWorld]  select "hello world" as message  []  5.3138ms
+    hello world
 
 If you see the above output result, congratulations, you have successfully run Juice.
 
 Detailed Documentation
 ------------------------------
+
 .. toctree::
    :maxdepth: 2
-   :caption: Introduction to Juice
+   :caption: Core Features
 
    configuration
    mappers
    result_mapping
    tx
-   cache
    dynamic_sql
    expr
-   hot_reload
    middleware
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Advanced Features
+
    code_generate
    extension
+   idea-plugin
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Others
+
    eatmoreapple

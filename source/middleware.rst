@@ -165,7 +165,7 @@ To create custom middleware, you just need to implement the ``Middleware`` inter
         if err != nil {
             panic(err)
         }
-        engine, err := juice.DefaultEngine(cfg)
+        engine, err := juice.Default(cfg)
         if err != nil {
             panic(err)
         }
