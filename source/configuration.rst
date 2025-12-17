@@ -230,3 +230,307 @@ To disable debug mode, use the following configuration:
         <setting name="debug" value="false"/>
       </settings>
     </configuration>
+
+Connection Pool Tuning Guide
+----------------------------
+
+The connection pool is a key factor in database application performance. Reasonable connection pool configuration can significantly improve application performance and stability.
+
+Tuning Principles
+~~~~~~~~~~~~~~~~~
+
+1. **Adjust Based on Actual Load**
+   
+   Different application scenarios require different connection pool configurations:
+   
+   - Web Applications: High concurrency requiring a larger connection pool.
+   - Batch Tasks: Low concurrency, a small connection pool suffices.
+   - Microservices: Adjust based on service scale and call frequency.
+
+2. **Avoid Over-Configuration**
+   
+   A connection pool that is too large can cause problems:
+   
+   - Consuming too many database resources.
+   - Increasing the burden on the database server.
+   - Wasting application server memory.
+
+3. **Monitor and Adjust**
+   
+   Continuously monitor the following metrics:
+   
+   - Connection pool usage rate.
+   - Wait time for connections.
+   - Frequency of connection creation and destruction.
+   - Database server load.
+
+Recommended Configurations for Different Scenarios
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Web Applications (High Concurrency)**
+
+.. code-block:: xml
+
+    <environment id="web-prod">
+        <dataSource>root:password@tcp(localhost:3306)/database</dataSource>
+        <driver>mysql</driver>
+        <!-- Max open connections: Set based on concurrency -->
+        <maxOpenConnNum>200</maxOpenConnNum>
+        <!-- Max idle connections: Usually set to 25%-50% of maxOpenConnNum -->
+        <maxIdleConnNum>50</maxIdleConnNum>
+        <!-- Max connection lifetime: 30 minutes -->
+        <maxConnLifetime>1800</maxConnLifetime>
+        <!-- Max idle connection lifetime: 10 minutes -->
+        <maxIdleConnLifetime>600</maxIdleConnLifetime>
+    </environment>
+
+**Batch Tasks (Low Concurrency, Long Running)**
+
+.. code-block:: xml
+
+    <environment id="batch">
+        <dataSource>root:password@tcp(localhost:3306)/database</dataSource>
+        <driver>mysql</driver>
+        <!-- Batch processing usually has lower concurrency -->
+        <maxOpenConnNum>20</maxOpenConnNum>
+        <maxIdleConnNum>5</maxIdleConnNum>
+        <!-- Long-running tasks can have longer connection lifetimes -->
+        <maxConnLifetime>7200</maxConnLifetime>
+        <maxIdleConnLifetime>3600</maxIdleConnLifetime>
+    </environment>
+
+**Microservices (Medium Concurrency)**
+
+.. code-block:: xml
+
+    <environment id="microservice">
+        <dataSource>root:password@tcp(localhost:3306)/database</dataSource>
+        <driver>mysql</driver>
+        <!-- Microservices usually require fast response -->
+        <maxOpenConnNum>50</maxOpenConnNum>
+        <maxIdleConnNum>10</maxIdleConnNum>
+        <!-- Shorter lifetime to release resources quickly -->
+        <maxConnLifetime>900</maxConnLifetime>
+        <maxIdleConnLifetime>300</maxIdleConnLifetime>
+    </environment>
+
+**Development Environment**
+
+.. code-block:: xml
+
+    <environment id="dev">
+        <dataSource>./dev.db</dataSource>
+        <driver>sqlite3</driver>
+        <!-- Keep simple configuration for development -->
+        <maxOpenConnNum>10</maxOpenConnNum>
+        <maxIdleConnNum>2</maxIdleConnNum>
+        <maxConnLifetime>3600</maxConnLifetime>
+    </environment>
+
+Configuration Parameters Detail
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 15 60
+
+   * - Parameter Name
+     - Default Value
+     - Description & Suggestions
+   * - maxOpenConnNum
+     - Unlimited
+     - **Maximum Open Connections**
+       
+       - Limits the total number of simultaneously open database connections.
+       - Suggestion: Set based on database server performance and application concurrency.
+       - Web Apps: 50-200, Batch: 10-50.
+       - Setting it too large will consume excessive database resources.
+   * - maxIdleConnNum
+     - 2
+     - **Maximum Idle Connections**
+       
+       - The number of idle connections kept in the pool.
+       - Suggestion: 25%-50% of maxOpenConnNum.
+       - Setting it too small causes frequent creation/destruction of connections.
+       - Setting it too large wastes resources.
+   * - maxConnLifetime
+     - Permanent
+     - **Maximum Connection Lifetime (Seconds)**
+       
+       - Maximum time from creation to forced closure.
+       - Suggestion: 1800-7200 (30 minutes - 2 hours).
+       - Prevents issues caused by long-lived connections.
+       - 0 means never expire (not recommended).
+   * - maxIdleConnLifetime
+     - Permanent
+     - **Maximum Idle Connection Lifetime (Seconds)**
+       
+       - Maximum time an idle connection is kept.
+       - Suggestion: 300-3600 (5 minutes - 1 hour).
+       - Should be less than maxConnLifetime.
+       - Release inactive connections in time.
+
+Calculating Connection Pool Size
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Basic Formula**
+
+.. code-block:: text
+
+    maxOpenConnNum = (Core Count × 2) + Effective Spindle Count
+
+    OR
+
+    maxOpenConnNum = Concurrent Requests × Average Connection Hold Time / Request Interval
+
+**Example Calculation**
+
+Assuming your application:
+
+- Deployed on a 4-core CPU server
+- Using SSD storage (counts as 1 effective spindle)
+- Expected concurrency: 100 QPS
+- Average connection hold time per request: 50ms
+- Request interval: 10ms
+
+Method 1: ``maxOpenConnNum = (4 × 2) + 1 = 9`` (Conservative estimate)
+
+Method 2: ``maxOpenConnNum = 100 × 0.05 / 0.01 = 500`` (Theoretical maximum)
+
+**Practical Suggestion**: Start with a smaller value (e.g., 50) and gradually adjust to the optimal value through monitoring.
+
+Performance Monitoring
+~~~~~~~~~~~~~~~~~~~~~~
+
+**Monitoring Metrics**
+
+.. code-block:: go
+
+    // Get connection pool statistics
+    stats := engine.DB().Stats()
+
+    fmt.Printf("Max Open Connections: %d\n", stats.MaxOpenConnections)
+    fmt.Printf("Open Connections: %d\n", stats.OpenConnections)
+    fmt.Printf("In Use: %d\n", stats.InUse)
+    fmt.Printf("Idle: %d\n", stats.Idle)
+    fmt.Printf("Wait Count: %d\n", stats.WaitCount)
+    fmt.Printf("Wait Duration: %v\n", stats.WaitDuration)
+    fmt.Printf("Max Idle Closed: %d\n", stats.MaxIdleClosed)
+    fmt.Printf("Max Lifetime Closed: %d\n", stats.MaxLifetimeClosed)
+
+Common Issue Troubleshooting
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Issue 1: Connection Pool Exhaustion**
+
+Symptoms:
+  - Application response slows down.
+  - Large number of requests waiting for database connections.
+  - ``stats.WaitCount`` keeps growing.
+
+Solutions:
+  1. Increase ``maxOpenConnNum``.
+  2. Check for connection leaks (not closed properly).
+  3. Optimize slow queries to reduce connection holding time.
+  4. Consider using connection pool monitoring.
+
+**Issue 2: Frequent Connection Creation/Destruction**
+
+Symptoms:
+  - ``stats.MaxIdleClosed`` grows rapidly.
+  - CPU usage fluctuates.
+  - Database connection count fluctuates greatly.
+
+Solutions:
+  1. Increase ``maxIdleConnNum``.
+  2. Extend ``maxIdleConnLifetime``.
+  3. Evaluate if connection pool warmup is needed.
+
+**Issue 3: Database Connection Timeout**
+
+Symptoms:
+  - "connection timeout" errors occur.
+  - Connection failures after long running times.
+
+Solutions:
+  1. Set a reasonable ``maxConnLifetime``.
+  2. Ensure it is less than the database server's timeout setting.
+  3. Implement connection health checks.
+
+Best Practices
+~~~~~~~~~~~~~~
+
+**1. Connection Pool Warmup**
+
+.. code-block:: go
+
+    func warmupConnectionPool(engine *juice.Engine, size int) error {
+        db := engine.DB()
+        
+        // Create multiple connections
+        var conns []*sql.Conn
+        for i := 0; i < size; i++ {
+            conn, err := db.Conn(context.Background())
+            if err != nil {
+                return err
+            }
+            conns = append(conns, conn)
+        }
+        
+        // Execute simple query to ensure connection availability
+        for _, conn := range conns {
+            if err := conn.PingContext(context.Background()); err != nil {
+                return err
+            }
+        }
+        
+        // Release connections back to the pool
+        for _, conn := range conns {
+            conn.Close()
+        }
+        
+        return nil
+    }
+
+**2. Graceful Shutdown**
+
+.. code-block:: go
+
+    func gracefulShutdown(engine *juice.Engine) {
+        // Stop accepting new requests
+        // ...
+        
+        // Wait for existing requests to complete
+        time.Sleep(5 * time.Second)
+        
+        // Close connection pool
+        if err := engine.Close(); err != nil {
+            log.Printf("Failed to close connection pool: %v", err)
+        }
+    }
+
+**3. Configuration Checklist**
+
+Before deploying to production, please check:
+
+.. code-block:: text
+
+    ☐ Is maxOpenConnNum set according to actual load?
+    ☐ Is maxIdleConnNum 25%-50% of maxOpenConnNum?
+    ☐ Is maxConnLifetime less than database server timeout?
+    ☐ Is maxIdleConnLifetime less than maxConnLifetime?
+    ☐ Is connection pool monitoring implemented?
+    ☐ Are alert thresholds set?
+    ☐ Has stress testing been performed?
+    ☐ Is connection pool warmup mechanism in place?
+    ☐ Is graceful shutdown implemented?
+    ☐ Are configurations differentiated for different environments?
+
+.. tip::
+    **Tuning Advice**:
+    
+    1. Start with conservative configuration (small connection pool).
+    2. Collect actual data through monitoring.
+    3. Gradually adjust to the optimal value.
+    4. Regularly review and adjust configuration.
+    5. Record the reason and effect of each adjustment.

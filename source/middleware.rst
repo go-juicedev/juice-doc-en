@@ -40,7 +40,7 @@ Juice comes with some built-in middleware, such as:
     // QueryContext implements Middleware.
     // QueryContext will print the SQL statement and the execution time.
     func (m *DebugMiddleware) QueryContext(stmt Statement, next QueryHandler) QueryHandler {
-        if !m.isBugMode(stmt) {
+        if !m.isDeBugMode(stmt) {
             return next
         }
         return func(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
@@ -55,7 +55,7 @@ Juice comes with some built-in middleware, such as:
     // ExecContext implements Middleware.
     // ExecContext will print the SQL statement and the execution time.
     func (m *DebugMiddleware) ExecContext(stmt Statement, next ExecHandler) ExecHandler {
-        if !m.isBugMode(stmt) {
+        if !m.isDeBugMode(stmt) {
             return next
         }
         return func(ctx context.Context, query string, args ...any) (sql.Result, error) {
@@ -70,7 +70,7 @@ Juice comes with some built-in middleware, such as:
     // isBugMode returns true if the debug mode is on.
     // Default debug mode is on.
     // You can turn off the debug mode by setting the debug tag to false in the mapper statement attribute or the configuration.
-    func (m *DebugMiddleware) isBugMode(stmt Statement) bool {
+    func (m *DebugMiddleware) isDeBugMode(stmt Statement) bool {
         debug := stmt.Attribute("debug")
         if debug == "false" {
             return false

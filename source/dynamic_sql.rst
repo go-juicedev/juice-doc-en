@@ -166,3 +166,93 @@ To alias tables and fields in select statements:
     </select>
 
 This document outlines various dynamic SQL elements, how each can be used, and provides examples for better understanding of making SQL queries more dynamic and flexible in applications.
+
+SQL Fragment Parameterization
+-----------------------------
+
+The ``sql`` element supports parameterization, allowing arguments to be passed via the ``<bind>`` element.
+
+.. code-block:: xml
+
+    <mapper namespace="user">
+        <sql id="selectByField">
+            select * from user where ${field} = #{value}
+        </sql>
+
+        <select id="GetUsersByDynamicField">
+            <bind name="field" value='name'/> <!-- dynamic field name -->
+            <bind name="value" value='"eatmoreapple"'/> <!-- static value -->
+            <include refid="selectByField"/>
+        </select>
+    </mapper>
+
+In the example above, we define two parameters ``field`` and ``value`` using the ``<bind>`` element and use them in the ``sql`` fragment to dynamically generate the SQL statement.
+
+Parameter Scope and Priority
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Scope Limitations
+- The ``bind`` tag can be defined not only at the top level of a statement but also nested within dynamic SQL tags (such as ``<if>``, ``<where>``, ``<foreach>``, etc.).
+- Nested ``bind`` tags have a local scope, valid only within the current tag and its children.
+- Variables defined in a parent tag are visible to child tags and can be used directly.
+- Variables defined in an inner scope shadow variables with the same name in an outer scope.
+
+Parameter Lookup Priority
+The lookup order for parameters is as follows:
+    1. Parameters defined by ``bind`` - Highest priority
+    2. Passed parameters - User-provided arguments
+    3. System built-in parameters - Such as ``_databaseId``, ``_parameter``, etc.
+
+This means that parameters defined by ``bind`` can override user-provided parameters of the same name.
+
+Advanced Usage Examples
+~~~~~~~~~~~~~~~~~~~~~~~
+
+1. String Manipulation
+
+.. code-block:: xml
+
+    <select id="searchUsers">
+       <bind name="searchPattern" value='"%" + name + "%"'/>
+       <bind name="upperName" value='name.toUpperCase()'/>
+       SELECT * FROM users WHERE name LIKE #{searchPattern} OR UPPER(name) = #{upperName}
+    </select>
+
+2. Numeric Calculation
+
+.. code-block:: xml
+
+    <select id="getPageUsers">
+       <bind name="offset" value='pageNum * pageSize'/>
+       <bind name="limit" value='pageSize'/>
+       SELECT * FROM users ORDER BY id LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+3. Complex Object Processing
+
+.. code-block:: xml
+
+    <select id="complexSearch">
+        <bind name="userAge" value='user.age'/>
+        <bind name="userName" value='user.name'/>
+        <bind name="isActive" value='user.active'/>
+        SELECT * FROM users WHERE age >= #{userAge} AND name = #{userName} AND active = #{isActive}
+    </select>
+
+4. Scope and Shadowing Example
+
+.. code-block:: xml
+
+    <select id="scopedBindExample">
+        <bind name="pattern" value='"%"'/>
+        SELECT * FROM users
+        <where>
+            <if test='name != ""'>
+                <!-- Shadows the outer 'pattern' variable -->
+                <bind name="pattern" value='"%" + name + "%"'/>
+                AND name LIKE #{pattern}
+            </if>
+        </where>
+        <!-- The pattern here is still "%" -->
+        OR description LIKE #{pattern}
+    </select>

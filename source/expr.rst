@@ -319,3 +319,12 @@ Array Index Access
    param := juice.H{
        "a": []string{"eatmoreapple"},
    }
+
+.. tip::
+    **Best Practices**:
+
+    1. Keep expressions simple and clear.
+    2. Handle complex logic in Go code.
+    3. Use built-in functions appropriately.
+    4. Pay attention to XML special character escaping.
+    5. Test all condition branches.

@@ -237,31 +237,119 @@ In fact, `output` can also be omitted, and by default, the output will be to the
 Interface Constraints
 ---------------------
 
-Note that although juicecli can parse interface signatures to automatically generate implementations, it has its own rules.
+The juicecli tool can automatic parse interface signatures and generate implementations, but interface definitions must follow these rules.
 
-1. The definition of the interface requires that the first parameter of each function must be `context.Context`.
+Context Parameter
+~~~~~~~~~~~~~~~~~~
+All interface methods must have ``context.Context`` as the first parameter:
 
-2. Each function must have an error return value, and it must be the last parameter (go style).
+.. code-block:: go
 
-3. When the function name corresponds to an `action` with id `select` for queries, that function must have a return value that maps the results (what are you querying without a return value?).
+    type UserRepository interface {
+        // ✓ Correct: context.Context as the first parameter
+        GetUser(ctx context.Context, id int64) (*User, error)
 
-4. When the function name corresponds to an `action` id other than `select`, then the function can have only one error return value. If it has 2 return values, the first must be of type `sql.Result`.
+        // ✗ Incorrect: Missing context.Context
+        GetUser(id int64) (*User, error)
+    }
 
-5. Functions can have multiple parameters; when more than 2 parameters are present (the first being context), juice will wrap the parameters in a map, excluding context, with the map key being the name defined in the function's parameters.
+Error Return Value
+~~~~~~~~~~~~~~~~~~
+Following Go conventions, ``error`` must be the last return value:
 
-6. During invocation, the context must be one with a manager implementation. It can be passed using the context returned from `juice.ContextWithManager`.
+.. code-block:: go
+
+    type UserRepository interface {
+        // ✓ Correct: error is the last return value
+        CreateUser(ctx context.Context, user *User) error
+        UpdateUser(ctx context.Context, user *User) (sql.Result, error)
+
+        // ✗ Incorrect: error is not the last return value
+        DeleteUser(ctx context.Context, id int64) (error, bool)
+    }
+
+Query Operations (action="select")
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Must return data, and the data must be before the error:
+
+.. code-block:: go
+
+    type UserRepository interface {
+        // ✓ Correct: Returns query result
+        GetUser(ctx context.Context, id int64) (*User, error)
+        ListUsers(ctx context.Context) ([]*User, error)
+
+        // ✗ Incorrect: Query operation missing result return value
+        FindUser(ctx context.Context, id int64) error
+    }
+
+Non-Query Operations (INSERT/UPDATE/DELETE)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Can return only ``error``, or ``sql.Result`` and ``error``:
+
+.. code-block:: go
+
+    type UserRepository interface {
+        // ✓ Correct: Returns only error
+        DeleteUser(ctx context.Context, id int64) error
+
+        // ✓ Correct: Returns sql.Result and error
+        UpdateUser(ctx context.Context, user *User) (sql.Result, error)
+
+        // ✗ Incorrect: Non-query operation return type mismatch
+        CreateUser(ctx context.Context, user *User) (int64, error)
+    }
+
+Parameter Handling
+~~~~~~~~~~~~~~~~~~
+When there are more than two parameters (excluding context), parameters will be wrapped into a map:
+
+.. code-block:: go
+
+    type UserRepository interface {
+        // Defined interface method
+        SearchUsers(ctx context.Context, name string, age int, city string) ([]*User, error)
+    }
+
+    // Treated internally by Juice as:
+    params := map[string]any{
+        "name": name,
+        "age":  age,
+        "city": city,
+    }
+
+Context Requirements
+~~~~~~~~~~~~~~~~~~~~
+Calls must use a context with a manager implementation:
+
+.. code-block:: go
+
+    // ✓ Correct: Use ContextWithManager
+    ctx := juice.ContextWithManager(context.Background(), manager)
+    users, err := repo.SearchUsers(ctx, "John", 25, "New York")
+
+    // ✗ Incorrect: Directly using background context
+    ctx := context.Background()
+    users, err := repo.SearchUsers(ctx, "John", 25, "New York")
+
+Notes
+-------
+* The juicecli tool automatically generates implementation code based on these specifications
+* Non-compliant interface definitions may lead to generation failures or runtime errors
+* Parameter names affect generated SQL parameter mapping, please ensure accurate naming
+
 
 go generate
 -----------
 
 .. code-block:: go
 
-    //go:generate juicecli impl --type UserRepository --output user_repo.go
+    //go:generate juicecli impl -t UserRepository -o user_repo.go
     type UserRepository interface {
-      CreateUser(ctx context.Context, user *User) (sql.Result, error)
-      DeleteUserByID(ctx context.Context, id int64) (sql.Result, error)
-      UpdateUserNameByID(ctx context.Context, id int64, name string) (sql.Result, error)
-      GetUserByID(ctx context.Context, id int64) (*User, error)
+        CreateUser(ctx context.Context, user *User) (sql.Result, error)
+        DeleteUserByID(ctx context.Context, id int64) (sql.Result, error)
+        UpdateUserNameByID(ctx context.Context, id int64, name string) (sql.Result, error)
+        GetUserByID(ctx context.Context, id int64) (*User, error)
     }
 
-Simply place this line above the definition of your interface, and then execute `go generate` in the console to generate the corresponding code.
+Simply add this line above your interface definition, then run `go generate` in the console to generate the corresponding code.

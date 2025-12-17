@@ -81,50 +81,126 @@ This modification addresses the issue mentioned above.
 Read-Write Separation
 ---------------------
 
-Juice does not currently support this feature but it may in the future. Here is a concept for developers interested in implementing read-write separation using middleware:
+Juice provides a powerful implementation for read-write separation to optimize database performance and scalability.
+
+Configuring Multiple Data Sources
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+First, configure multiple data sources in the configuration file:
+
+.. code-block:: xml
+
+    <environments default="master">
+        <environment id="master">
+            <dataSource>root:qwe123@tcp(localhost:3306)/database</dataSource>
+            <driver>mysql</driver>
+        </environment>
+
+        <environment id="slave1">
+            <dataSource>root:qwe123@tcp(localhost:3307)/database</dataSource>
+            <driver>mysql</driver>
+        </environment>
+
+        <environment id="slave2">
+            <dataSource>root:qwe123@tcp(localhost:3308)/database</dataSource>
+            <driver>mysql</driver>
+        </environment>
+    </environments>
+
+By default, Juice only connects to the data source specified by the ``default`` attribute in ``environments``.
+It is recommended to set ``master`` as the default data source to handle write operations.
+
+Enabling Read-Write Separation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To enable read-write separation, you need to use the ``TxSensitiveDataSourceSwitchMiddleware`` middleware:
 
 .. code-block:: go
 
-    // Middleware is a wrapper of QueryHandler and ExecHandler.
-    type Middleware interface {
-        // QueryContext wraps the QueryHandler.
-        QueryContext(stmt *Statement, next QueryHandler) QueryHandler
-        // ExecContext wraps the ExecHandler.
-        ExecContext(stmt *Statement, next ExecHandler) ExecHandler
-    }
+    var engine *juice.Engine
+    ... // initialization
+    engine.Use(&juice.TxSensitiveDataSourceSwitchMiddleware{})
 
-Pseudocode for Read-Write Middleware:
+Routing Strategy
+~~~~~~~~~~~~~~~~
 
-.. code-block:: go
+Juice supports multiple read operation routing strategies, which can be configured at the statement level or global level:
 
-    type ReadWriteMiddleware struct {
-        slaves []*sql.DB
-        master *sql.DB
-    }
+Global Configuration
+^^^^^^^^^^^^^^^^^^^^
 
-    func (r ReadWriteMiddleware) QueryContext(_ *juice.Statement, next juice.QueryHandler) juice.QueryHandler {
-        return func(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
-            index := rand.Intn(len(r.slaves))
-            db := r.slaves[index]
-            ctx = juice.SessionWithContext(ctx, db)
-            return next(ctx, query, args...)
-        }
-    }
+Configure the default routing strategy in the project's ``settings``:
 
-    func (r ReadWriteMiddleware) ExecContext(_ *juice.Statement, next juice.ExecHandler) juice.ExecHandler {
-        return func(ctx context.Context, query string, args ...any) (sql.Result, error) {
-            ctx = juice.SessionWithContext(ctx, r.master)
-            return next(ctx, query, args...)
-        }
-    }
+.. code-block:: xml
 
-.. attention::
-   Note: Although database read-write separation can improve application performance, it can also introduce transaction management issues, as the middleware implementation may override all sessions. If the current session involves a transaction, this might invalidate transaction operations. Specific business logic must be implemented by developers.
+    <settings>
+        <setting name="selectDataSource" value="?"/>
+    </settings>
+
+Statement Level Configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+1. **Specify Data Source**
+
+   Explicitly specify a slave database for reading:
+
+   .. code-block:: xml
+
+        <select id="GetUserByID" dataSource="slave1">
+            select * from user where id = #{id}
+        </select>
+
+2. **Random Routing**
+
+   Use ``?`` to randomly select from all available data sources (including the master):
+
+   .. code-block:: xml
+
+        <select id="GetUserByID" dataSource="?">
+            select * from user where id = #{id}
+        </select>
+
+3. **Slave-Only Random Routing**
+
+   Use ``?!`` to randomly select from slave databases (excluding the master):
+
+   .. code-block:: xml
+
+        <select id="GetUserByID" dataSource="?!">
+            select * from user where id = #{id}
+        </select>
+
+Note: Statement-level configuration has higher priority than global configuration. If the ``dataSource`` attribute is not configured for a statement, the ``selectDataSource`` value in the global configuration is used.
+
+
+Transaction Safety
+~~~~~~~~~~~~~~~~~~
+
+The middleware is transaction-aware. When it detects that the current operation is within a transaction, it will not switch data sources and will directly use the data source of the current transaction to ensure transaction integrity and data consistency.
+
+Best Practices
+~~~~~~~~~~~~~~
+
+1. Use the master database for all write operations.
+2. Use ``?!`` for read-intensive operations to distribute load among slave databases.
+3. Use explicit routing (e.g., ``slave1``, ``slave2``) when specific slave features are needed.
+4. Use ``?`` to include the master database in load balancing when read consistency requirements are not high.
+
+Use Cases
+~~~~~~~~~
+
+Read-write separation is particularly suitable for:
+
+- Read-intensive scenarios
+- Scenarios requiring expanded read capacity
+- Scenarios needing to reduce master database load
+- Improving overall application performance
+
 
 Tracing Middleware
 ------------------
 
-Similarly to the read-write separation, tracing functionality can be added non-intrusively using middleware. Here is a pseudocode example:
+Similar to read-write separation, tracing functionality can be added non-intrusively using middleware. Here is a pseudocode example:
 
 .. code-block:: go
 
@@ -132,20 +208,24 @@ Similarly to the read-write separation, tracing functionality can be added non-i
 
     func (r TraceMiddleware) QueryContext(_ *juice.Statement, next juice.QueryHandler) juice.QueryHandler {
         return func(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
-            trace.Log(ctx, "query", query)  // your own trace implementation
+            trace.Log(ctx, "query", query) // your own trace
             return next(ctx, query, args...)
         }
     }
 
     func (r TraceMiddleware) ExecContext(stmt *juice.Statement, next juice.ExecHandler) juice.ExecHandler {
         return func(ctx context.Context, query string, args ...any) (sql.Result, error) {
-            trace.Log(ctx, "exec", query)  // your own trace implementation
+            trace.Log(ctx, "exec", query) // your own trace
             return next(ctx, query, args...)
         }
     }
 
+
 XML Document Constraint
 -----------------------
+
+DTD
+~~~
 
 XML Document Type Definition (DTD) is a language used to define the structure and rules of an XML document. By using a DTD, you can constrain an XML document to include specific elements, attributes, relationships, and sequences.
 
@@ -153,18 +233,53 @@ In practical applications, it is common to associate a DTD file with an XML docu
 
 For example, in the Juice configuration files like `config.xml` or `mapper.xml`, you can associate a DTD file by specifying the PUBLIC attribute and URI in the <!DOCTYPE> element. This allows editors or other tools to check the XML document against the defined DTD rules and identify potential errors and issues.
 
-config xml:
+config xml
 
 .. code-block:: xml
 
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE configuration PUBLIC "-//juice.org//DTD Config 1.0//EN"
-    "https://raw.githubusercontent.com/eatmoreapple/juice/main/config.dtd">
+            "https://raw.githubusercontent.com/go-juicedev/juice/refs/heads/main/config.dtd">
 
-mapper xml:
+mapper xml
 
 .. code-block:: xml
 
     <?xml version="1.0" encoding="utf-8" ?>
     <!DOCTYPE mapper PUBLIC "-//juice.org//DTD Config 1.0//EN"
-    "https://raw.githubusercontent.com/eatmoreapple/juice/main/mapper.dtd">
+            "https://raw.githubusercontent.com/go-juicedev/juice/refs/heads/main/mapper.dtd">
+
+
+XSD
+~~~
+
+XML Schema Definition (XSD) is the successor to DTD, providing a more powerful and flexible mechanism for XML document validation. Compared to DTD, XSD offers the following advantages:
+
+1. **Type System**
+   
+   - Supports richer data types
+   - Allows custom complex types
+   - Supports type inheritance and extension
+
+2. **Namespace Support**
+   
+   - Better modularity support
+   - Avoids naming conflicts
+   - Easier to manage large XML structures
+
+3. **Readability**
+   
+   - Written in XML syntax
+   - Easier to understand and maintain
+   - Better tool support
+
+Using XSD in Juice:
+
+.. code-block:: xml
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <configuration
+        xmlns="http://github.com/go-juciedev/juice/schema"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://github.com/go-juciedev/juice/schema
+                  https://raw.githubusercontent.com/go-juicedev/juice/refs/heads/main/juice-mapper.xsd">
