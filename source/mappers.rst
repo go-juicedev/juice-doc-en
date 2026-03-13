@@ -1,12 +1,12 @@
 SQL Mappers
-================
+===========
 
-After configuring the data source information, we can use SQL Mappers to access the database. First, we need to tell Juice where to find our SQL statements.
+After configuring your datasource information, you can use SQL Mappers to access the database. The first step is to tell Juice where to find your SQL statements.
 
 mappers Tag
-----------------
+-----------
 
-The ``mappers`` tag is the parent tag for the ``mapper`` tags; it is a collection tag used to store multiple ``mapper`` tags.
+``mappers`` is the parent tag of ``mapper``. It is a collection tag used to hold multiple ``mapper`` definitions.
 
 .. code-block:: xml
 
@@ -25,45 +25,46 @@ The ``mappers`` tag is the parent tag for the ``mapper`` tags; it is a collectio
     </configuration>
 
 mapper Tag
-----------------
+----------
 
-The ``mapper`` tag is a collection tag used to store SQL statements.
+The ``mapper`` tag is a container for SQL statements.
 
-Basic Usage Examples:
+Basic usage examples:
 
 .. code-block:: xml
 
     <mappers>
-        <!-- Inline mapper, define SQL directly in configuration file -->
+        <!-- Inline mapper defined directly in the configuration file -->
         <mapper namespace="main">
             <select id="HelloWorld">
                 select "hello world" as message
             </select>
         </mapper>
 
-        <!-- Reference external mapper file -->
+        <!-- Reference an external mapper file -->
         <mapper resource="path_to_another_mapper.xml"/>
-        
-        <!-- Reference mapper file via URL -->
+
+        <!-- Reference a mapper file through a URL -->
         <mapper url="http(s)://domain:port/path"/>
         <mapper url="file://path to your mapper"/>
     </mappers>
 
-**Attribute Descriptions:**
+**Attribute descriptions**
 
-- ``namespace``: Specifies the namespace of the mapper, which helps to differentiate between different mappers. The value must be unique.
-- ``resource``: References another mapper file. Note: if the referenced mapper file does not reference other files, then its ``namespace`` attribute is required.
-- ``url``: References a mapper file through a URL. Currently supports ``http`` and ``file`` protocols. If the referenced mapper file does not reference other files, then its ``namespace`` attribute is required.
+- ``namespace``: specifies the mapper namespace. It must be unique.
+- ``resource``: references another mapper file. If the referenced file does not reference another file, its ``namespace`` attribute is required.
+- ``url``: references a mapper file through a URL. ``http`` and ``file`` are currently supported. If the referenced file does not reference another file, its ``namespace`` attribute is required.
 
-Using referenced mapper files allows us to distribute SQL statements across different files, making our structure clearer.
+By referencing mapper files, you can distribute SQL statements across multiple files and keep the structure clearer.
 
 .. attention::
-   The ``namespace``, ``resource``, and ``url`` attributes are mutually exclusive; only one can be used within a single ``mapper`` tag.
+
+    ``namespace``, ``resource``, and ``url`` are mutually exclusive. A single ``mapper`` tag can use only one of them.
 
 SQL Statement Tags
------------------------------------
+------------------
 
-Juice supports four types of SQL statement tags: ``select``, ``insert``, ``update``, ``delete``.
+Juice supports four kinds of SQL statement tags: ``select``, ``insert``, ``update``, and ``delete``.
 
 .. code-block:: xml
 
@@ -74,38 +75,38 @@ Juice supports four types of SQL statement tags: ``select``, ``insert``, ``updat
         </select>
 
         <!-- Insert statement -->
-        <insert id="insertUser">
+        <insert id="InsertUser">
             insert into user (name, age) values (#{name}, #{age})
         </insert>
 
         <!-- Update statement -->
-        <update id="updateUser">
+        <update id="UpdateUser">
             update user set age = #{age} where name = #{name}
         </update>
 
         <!-- Delete statement -->
-        <delete id="deleteUser">
+        <delete id="DeleteUser">
             delete from user where name = #{name}
         </delete>
     </mapper>
 
-The ``select``, ``insert``, ``update``, and ``delete`` tags all have an ``id`` attribute, which is used to identify the SQL statement and must be unique within the same mapper.
+Each of the ``select``, ``insert``, ``update``, and ``delete`` tags has an ``id`` attribute. It identifies the SQL statement and must be unique within the same mapper.
 
-**Common Questions:**
+**Common question**
 
-*Question: Can you write a delete statement inside the select tag?*
+*Question: Can I put a delete statement inside a select tag?*
 
-*Answer: Technically yes, but it is strongly not recommended as each tag should have its own semantic meaning.*
+*Answer: Technically yes, but it is strongly discouraged. Each tag should preserve its own semantics.*
 
 Parameter Handling
-----------------
+------------------
 
 Using Parameters in SQL Statements
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We can use parameters in our SQL statements, which can be passed in from external sources. We just need to use specific syntax to reference these parameters.
+You can use parameters in SQL statements and pass values from the outside. You only need to reference them with the proper syntax.
 
-**Parameter Definition Example:**
+**Parameter definition example**
 
 .. code-block:: xml
 
@@ -115,50 +116,49 @@ We can use parameters in our SQL statements, which can be passed in from externa
         </select>
     </mapper>
 
-In the above SQL statement, we use ``#{name}`` to reference a parameter. This parameter's value will be passed in when executing the SQL statement.
+In the example above, ``#{name}`` references a parameter whose value is passed in when the SQL is executed.
 
-**Parameter Syntax Comparison:**
+**Parameter syntax comparison**
 
-- ``#{name}``: Prepared parameter, replaced with placeholders (``?``), prevents SQL injection, **recommended**
-- ``${name}``: Direct string replacement, not replaced with placeholders, **has SQL injection risk, use with caution**
+- ``#{name}``: a prepared parameter that is replaced with a placeholder such as ``?``. It helps prevent SQL injection and is recommended.
+- ``${name}``: direct string interpolation. It is not replaced with a placeholder and carries SQL injection risk, so use it carefully.
 
 .. code-block:: xml
 
     <mapper namespace="main">
-        <!-- Recommended: Using prepared parameters -->
+        <!-- Recommended: prepared parameter -->
         <select id="GetUserByName">
             select * from user where name = #{name}
         </select>
 
-        <!-- Use with caution: Direct string replacement -->
+        <!-- Use carefully: direct string interpolation -->
         <select id="GetUserByDynamicColumn">
             select * from user order by ${columnName}
         </select>
     </mapper>
 
 .. warning::
-    When using ``${}`` syntax, ensure the parameter value is safe as it does not provide SQL injection protection.
+
+    When using ``${}``, make sure the parameter value is safe because Juice will not protect it from SQL injection automatically.
 
 Parameter Passing Methods
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**1. Map Parameter Passing**
+**1. Passing a map**
 
 .. code-block:: go
 
-    userMap := map[string]interface{}{
+    userMap := map[string]any{
         "name": "eatmoreapple",
-        "age":  25,
     }
-
     engine.Object("main.CountUserByName").QueryContext(context.TODO(), userMap)
 
-**2. Struct Parameter Passing**
+**2. Passing a struct**
 
 .. code-block:: go
 
     type User struct {
-        Name string `param:"name"`  // Use param tag to customize parameter name
+        Name string `param:"name"`
         Age  int    `param:"age"`
     }
 
@@ -166,16 +166,15 @@ Parameter Passing Methods
         Name: "eatmoreapple",
         Age:  25,
     }
-
     engine.Object("main.CountUserByName").QueryContext(context.TODO(), user)
 
-**3. Array/Slice Parameter Passing**
+**3. Passing an array or slice**
 
-Since both map and struct can be converted to key-value structures, if we pass a slice or array parameter, we can access the passed parameters using index access:
+Since map and struct values can both be converted into key-value form, a slice or array can be accessed by index:
 
 .. code-block:: xml
 
-     <mapper namespace="main">
+    <mapper namespace="main">
         <select id="CountUserByName">
             select count(*) from user where name = #{0} and age = #{1}
         </select>
@@ -183,11 +182,11 @@ Since both map and struct can be converted to key-value structures, if we pass a
 
 .. code-block:: go
 
-     engine.Object("main.CountUserByName").QueryContext(context.TODO(), []interface{}{"eatmoreapple", 25})
+    engine.Object("main.CountUserByName").QueryContext(context.TODO(), []any{"eatmoreapple", 25})
 
-**4. Single Parameter Passing**
+**4. Passing a single parameter**
 
-If we pass a parameter that is not a struct, map, or slice/array, Juice will wrap this parameter into a map where the key is ``param`` and the value is our passed parameter.
+If the parameter is not a struct, map, slice, or array, Juice wraps it into a map where the key is ``param`` and the value is the argument you passed.
 
 .. code-block:: xml
 
@@ -201,9 +200,9 @@ If we pass a parameter that is not a struct, map, or slice/array, Juice will wra
 
     engine.Object("main.CountUserByName").QueryContext(context.TODO(), "eatmoreapple")
 
-**Custom Parameter Names:**
+**Custom parameter names**
 
-You can customize the single parameter name using the ``paramName`` attribute:
+You can customize the name of a single parameter with the ``paramName`` attribute:
 
 .. code-block:: xml
 
@@ -213,11 +212,11 @@ You can customize the single parameter name using the ``paramName`` attribute:
         </select>
     </mapper>
 
-Or set globally via the environment variable ``JUICE_PARAM_NAME``.
+You can also set it globally through the ``JUICE_PARAM_NAME`` environment variable.
 
-**Convenience Type:**
+**Convenience type**
 
-``juice.H`` is an alias for ``map[string]interface{}``, designed to help developers pass parameters conveniently.
+``juice.H`` is an alias for ``map[string]any`` and is provided to make parameter passing more convenient.
 
 .. code-block:: go
 
@@ -225,70 +224,73 @@ Or set globally via the environment variable ``JUICE_PARAM_NAME``.
         "name": "eatmoreapple",
         "age":  25,
     }
-
-    engine.Object("main.GetUser").QueryContext(context.TODO(), params)
+    engine.Object("main.CountUserByName").QueryContext(context.TODO(), params)
 
 .. attention::
-    When the parameter is a map type, the map's key must be a string type.
+
+    If the parameter is a map, its key type must be ``string``.
 
 Advanced Features
---------
+-----------------
 
 Statement Attributes
-~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
-SQL statement tags support various attributes to control execution behavior:
+SQL statement tags support a range of attributes to control execution behavior:
 
 .. code-block:: xml
 
     <mapper namespace="main">
-        <select id="GetUser" 
-                timeout="5000" 
-                debug="false"
-                paramName="userId">
-            select * from user where id = #{userId}
+        <select id="GetUser" timeout="1000" debug="true">
+            select * from user where id = #{id}
         </select>
-        
-        <insert id="CreateUser" 
-                useGeneratedKeys="true" 
-                keyProperty="id">
-            insert into user (name, email) values (#{name}, #{email})
+
+        <insert id="CreateUser" useGeneratedKeys="true" keyProperty="id">
+            insert into user (name, age) values (#{name}, #{age})
         </insert>
+
+        <select id="CountUserByName" paramName="name">
+            select count(*) from user where name = #{name}
+        </select>
     </mapper>
 
-**Common Attribute Descriptions:**
+**Common attributes**
 
-- ``timeout``: Set SQL execution timeout (milliseconds)
-- ``debug``: Whether to enable debug mode
-- ``paramName``: Customize single parameter name
-- ``useGeneratedKeys``: Whether to use auto-generated keys
-- ``keyProperty``: Specify the property name to receive auto-generated keys
+- ``timeout``: SQL execution timeout in milliseconds
+- ``debug``: whether to enable debug mode
+- ``paramName``: custom name for a single parameter
+- ``useGeneratedKeys``: whether to use auto-generated keys
+- ``keyProperty``: the property that receives the generated key
 
 Best Practices
---------
+--------------
 
-1. **Naming Conventions**
-   - Use meaningful namespaces
-   - SQL statement IDs should clearly express their functionality
-   - Parameter names should be descriptive
+1. **Naming conventions**
 
-2. **File Organization**
-   - Divide mapper files by functional modules
-   - Don't make each mapper file too large
-   - Use reasonable directory structure
+   - Use meaningful namespaces.
+   - SQL statement IDs should clearly describe what they do.
+   - Parameter names should be descriptive.
+
+2. **File organization**
+
+   - Split mapper files by feature or module.
+   - Avoid letting a single mapper file grow too large.
+   - Use a clear and consistent directory structure.
 
 3. **Security**
-   - Prefer using ``#{}`` parameter syntax
-   - Avoid direct SQL string concatenation
-   - Validate input parameters
 
-4. **Performance Optimization**
-   - Use indexes appropriately
-   - Avoid SELECT *
-   - Use appropriate data types
+   - Prefer ``#{}`` over ``${}``.
+   - Avoid direct SQL string concatenation.
+   - Validate user input before sending it to SQL.
+
+4. **Performance optimization**
+
+   - Use indexes appropriately.
+   - Avoid ``SELECT *`` where possible.
+   - Choose appropriate data types.
 
 Example: Complete Mapper Configuration
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: xml
 
@@ -297,26 +299,26 @@ Example: Complete Mapper Configuration
             "https://raw.githubusercontent.com/go-juicedev/juice/main/mapper.dtd">
 
     <mapper namespace="user.UserRepository">
-        
+
         <!-- Basic query -->
         <select id="GetById">
-            select id, name, email, age, created_at 
-            from users 
+            select id, name, email, age, created_at
+            from users
             where id = #{id}
         </select>
-        
+
         <!-- Pagination query -->
         <select id="GetByPage">
-            select id, name, email, age, created_at 
-            from users 
-            order by created_at desc 
+            select id, name, email, age, created_at
+            from users
+            order by created_at desc
             limit #{limit} offset #{offset}
         </select>
-        
+
         <!-- Conditional query -->
         <select id="GetByCondition">
-            select id, name, email, age, created_at 
-            from users 
+            select id, name, email, age, created_at
+            from users
             where 1=1
             <if test="name != nil and name != ''">
                 and name like concat('%', #{name}, '%')
@@ -329,28 +331,28 @@ Example: Complete Mapper Configuration
             </if>
             order by created_at desc
         </select>
-        
+
         <!-- Create user -->
         <insert id="Create" useGeneratedKeys="true" keyProperty="id">
-            insert into users (name, email, age, created_at) 
+            insert into users (name, email, age, created_at)
             values (#{name}, #{email}, #{age}, now())
         </insert>
-        
+
         <!-- Update user -->
         <update id="Update">
-            update users 
-            set name = #{name}, 
-                email = #{email}, 
+            update users
+            set name = #{name},
+                email = #{email},
                 age = #{age},
                 updated_at = now()
             where id = #{id}
         </update>
-        
+
         <!-- Delete user -->
         <delete id="Delete">
             delete from users where id = #{id}
         </delete>
-        
+
         <!-- Batch operations -->
         <insert id="BatchInsert">
             insert into users (name, email, age, created_at) values
@@ -358,7 +360,7 @@ Example: Complete Mapper Configuration
                 (#{user.name}, #{user.email}, #{user.age}, now())
             </foreach>
         </insert>
-        
+
     </mapper>
 
-Through the above configuration and usage methods, you can fully utilize Juice's SQL Mapper functionality to build an efficient and secure data access layer.
+With the configuration and usage patterns above, you can use Juice SQL Mappers to build an efficient and secure data access layer.

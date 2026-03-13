@@ -1,24 +1,25 @@
 Transaction Management
-========
+======================
 
 Overview
-----
+--------
 
-Transactions are the basic unit of database operations, used to ensure data consistency and integrity. Juice provides comprehensive transaction support, including basic transaction operations, nested transactions, and isolation level control.
+Transactions ensure the atomicity, consistency, isolation, and durability of a group of database operations. Juice provides two transaction styles:
+
+1. Manual transactions: ``engine.Tx()`` and ``engine.ContextTx(...)``
+2. Functional transactions: ``juice.Transaction(...)`` and ``juice.NestedTransaction(...)``
 
 Transaction Interfaces
--------
+----------------------
 
-Juice defines two core interfaces to handle transactions:
+The core transaction-related interfaces in Juice are:
 
 .. code-block:: go
 
-    // Manager interface defines basic database operations
     type Manager interface {
-        Object(v any) Executor
+        Object(v any) SQLRowsExecutor
     }
 
-    // TxManager interface extends Manager, adding transaction control methods
     type TxManager interface {
         Manager
         Begin() error
@@ -26,123 +27,94 @@ Juice defines two core interfaces to handle transactions:
         Rollback() error
     }
 
-Basic Transaction Operations
-----------
+Manual Transactions
+-------------------
 
-Example code shows how to use transactions:
+Use manual transactions when you need explicit control over ``Begin``, ``Commit``, and ``Rollback``:
 
 .. code-block:: go
 
-    engine, err := juice.Default(cfg)
-    if err != nil {
-        panic(err)
-    }
-
-    // Start transaction
     tx := engine.Tx()
     if err := tx.Begin(); err != nil {
-        panic(err)
+        return err
     }
-
-    // Ensure transaction will eventually be rolled back or committed
     defer tx.Rollback()
 
-    // Operations within transaction
-    {
-        // Query operations
-        result1, err := tx.Object("QueryUser").
-            QueryContext(context.TODO(), nil)
-        if err != nil {
-            return err
-        }
-
-        // Use generic manager
-        result2, err := juice.NewGenericManager[User](tx).
-            Object("CreateUser").
-            QueryContext(context.TODO(), param)
-        if err != nil {
-            return err
-        }
+    if _, err := tx.Object(Repo{}.CreateUser).ExecContext(ctx, user); err != nil {
+        return err
     }
 
-    // Commit transaction
+    if _, err := tx.Object(Repo{}.CreateOrder).ExecContext(ctx, order); err != nil {
+        return err
+    }
+
     return tx.Commit()
 
 .. note::
-    Transaction usage recommendations:
 
-    1. Always use defer tx.Rollback()
-    2. Check all errors before committing
-    3. Do not use the transaction object after completion
+    It is recommended to always use ``defer tx.Rollback()`` as a fallback, and then call ``tx.Commit()`` only on the success path.
 
-Nested Transactions
--------
+Functional Transactions
+-----------------------
 
-Juice supports nested transactions, but proper management is required:
+Functional transactions automatically inject the transaction manager into the callback context, which makes them a good fit for service-layer transaction boundaries:
 
 .. code-block:: go
 
-    tx1 := engine.Tx()
-    if err := tx1.Begin(); err != nil {
+    baseCtx := juice.ContextWithManager(context.Background(), engine)
+
+    err := juice.Transaction(baseCtx, func(ctx context.Context) error {
+        repo := NewUserRepository()
+        _, err := repo.CreateUser(ctx, user)
         return err
-    }
-    defer tx1.Rollback()
-
-    // Nested transaction
-    tx2 := engine.Tx()
-    if err := tx2.Begin(); err != nil {
-        return err
-    }
-    defer tx2.Rollback()
-
-    // Inner transaction operations
-    if err := tx2.Commit(); err != nil {
-        return err
-    }
-
-    // Outer transaction operations
-    return tx1.Commit()
-
-.. attention::
-    Nested transaction considerations:
-
-    1. Each transaction object needs to be properly closed
-    2. Follow the first-opened-last-closed principle
-    3. Pay attention to dependencies between transactions
-
-Isolation Level Control
-----------
-
-Juice supports complete transaction isolation level control, consistent with the ``database/sql`` package:
-
-.. code-block:: go
-
-    // Supported isolation levels
-    const (
-        LevelDefault         sql.IsolationLevel = iota
-        LevelReadUncommitted
-        LevelReadCommitted
-        LevelWriteCommitted
-        LevelRepeatableRead
-        LevelSnapshot
-        LevelSerializable
-        LevelLinearizable
+    },
+        tx.WithIsolationLevel(sql.LevelReadCommitted),
+        tx.WithReadOnly(false),
     )
 
-Usage example:
+    if err != nil {
+        return
+    }
+
+``Transaction`` commits when the callback returns ``nil`` and rolls back when the callback returns a non-``nil`` error.
+
+Nested Call Semantics
+---------------------
+
+The semantics of ``NestedTransaction`` are: reuse the current transaction if one already exists, otherwise create a new transaction.
 
 .. code-block:: go
 
-    // Start transaction with specific isolation level
-    tx := engine.ContextTx(ctx, &sql.TxOptions{
-        Isolation: sql.LevelSerializable,
-        ReadOnly:  false,
+    err := juice.Transaction(baseCtx, func(ctx context.Context) error {
+        if err := serviceA(ctx); err != nil {
+            return err
+        }
+
+        return juice.NestedTransaction(ctx, func(ctx context.Context) error {
+            return serviceB(ctx)
+        })
     })
-    if err := tx.Begin(); err != nil {
-        return err
-    }
-    defer tx.Rollback()
 
-    // Transaction operations...
+.. attention::
 
-    return tx.Commit()
+    ``NestedTransaction`` is not the same as a database savepoint. It does not automatically create an independent inner commit point.
+
+Isolation Level and Read-Only Options
+-------------------------------------
+
+You can specify the isolation level and read-only flag when opening a transaction:
+
+.. code-block:: go
+
+    err := juice.Transaction(baseCtx, handler,
+        tx.WithIsolationLevel(sql.LevelSerializable),
+        tx.WithReadOnly(true),
+    )
+
+These options are aligned with ``database/sql`` and ``sql.TxOptions``.
+
+Further Reading
+---------------
+
+- :doc:`tx_semantics`
+- :doc:`multi_source_tx`

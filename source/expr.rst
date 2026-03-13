@@ -1,330 +1,312 @@
-Expressions
-===========
+Expression System
+=================
 
-From the dynamic SQL examples above, we can see that Juice supports the use of expressions within the ``if`` and ``when`` tags. The syntax for these expressions aligns mostly with that of Go language. You can write most of the expressions that you would in Go, but there are a few special considerations:
+Overview
+--------
 
-1. Juice only supports single-line expressions, not multi-line expressions.
-2. When writing a string within an expression, you need to enclose the value of the test attribute in single quotes, for example:
+As you can see from the dynamic SQL examples, Juice supports expressions inside ``if`` and ``when`` tags. The syntax is broadly similar to Go expressions.
 
-.. code:: xml
+Usage Restrictions
+------------------
 
-   <if test='name == "eatmoreapple"'>
-   </if>
+1. Juice supports only single-line expressions.
 
-3. Try to write simpler expressions.
+2. When writing a string inside an expression, wrap the ``test`` attribute value in single quotes:
 
-Expressions
------------
+   .. code-block:: xml
+
+        <if test='name == "eatmoreapple"'>
+        </if>
+
+3. Keep expressions as simple as possible.
+
+Basic Operators
+---------------
 
 Comparison Operators
 ~~~~~~~~~~~~~~~~~~~~
 
-Juice supports the following comparison operators:
+Juice supports these comparison operators:
 
-1. ``==``: Checks if two values are equal.
-2. ``!=``: Checks if two values are not equal.
-3. ``>``: Checks if the left value is greater than the right.
-4. ``>=``: Checks if the left value is greater than or equal to the right.
+1. ``==``: equal to
+2. ``!=``: not equal to
+3. ``>``: greater than
+4. ``>=``: greater than or equal to
 
-.. attention:: ``<`` and ``<=`` are not supported as they clash with XML syntax. Instead, ``&lt;`` and ``&lt;=`` can be used as substitutes.
+.. attention::
+
+    ``<`` and ``<=`` conflict with XML syntax. Use ``&lt;`` and ``&lt;=`` instead.
 
 Logical Operators
 ~~~~~~~~~~~~~~~~~
 
-Juice supports the following logical operators:
+Juice supports these logical operators:
 
-1. ``and``: Logical AND.
-2. ``or``: Logical OR.
-3. ``!``: Logical NOT.
+1. ``and``: logical AND
+2. ``or``: logical OR
+3. ``!``: logical NOT
 
 Arithmetic Operators
 ~~~~~~~~~~~~~~~~~~~~
 
-Juice supports the following arithmetic operators:
+Juice supports these arithmetic operators:
 
-1. ``+``: Addition.
-2. ``-``: Subtraction.
-3. ``*``: Multiplication.
-4. ``/``: Division.
-5. ``%``: Modulus.
+1. ``+``: addition
+2. ``-``: subtraction
+3. ``*``: multiplication
+4. ``/``: division
+5. ``%``: remainder
 
 Reserved Keywords
 ~~~~~~~~~~~~~~~~~
 
-Reserved keywords in Juice are predefined and cannot be used as variable names:
-
-1. ``true``: Boolean true.
-2. ``false``: Boolean false.
-3. ``nil``: Represents a null value.
-4. ``and``: Logical AND.
-5. ``or``: Logical OR.
-
-Functions
----------
-
-To enrich the functionality of expressions, Juice supports the invocation of functions within expressions. Juice has built-in functions that you can use within your expressions:
-
-1. **length**: Returns the length of a string, array, slice, or map.
-
-.. code:: func
-
-   length[T slice|map|string](T) int
-
-2. **substr**: Returns a substring, with the first parameter as the string, the second as the start position, and the third as the end position.
-
-.. code:: func
-
-   substr(string, int, int) string
-
-3. **join**: Converts an array or slice of strings into a single string, with the first parameter being the array or slice and the second being the delimiter.
-
-.. code:: func
-
-   join[T slice](T, string) string
-
-4. **contains**: Checks if a string, slice, or map contains a specified element.
-
-.. code:: func
-
-   contains[T slice|map|string](T, interface{}) bool
-
-5. **slice**: Slices an array or a slice, with the first parameter as the array or slice, the second as the start position, and the third as the end position.
-
-.. code:: func
-
-   slice[T slice](T, int, int) T
-
-6. **title**: Capitalizes the first letter of a string.
-
-.. code:: func
-
-   title(string) string
-
-7. **lower**: Converts a string to lowercase.
-
-.. code:: func
-
-   lower(string) string
-
-8. **upper**: Converts a string to uppercase.
-
-.. code:: func
-
-   upper(string) string
-
-Custom Global Function Registration
------------------------------------
-
-When the built-in functions are insufficient, you can register custom functions, which must meet the following criteria:
-
-1. It must be a function.
-2. It must have two return values, the first of any type and the second of error type.
-
-When these conditions are met, you can register the function in Juice:
-
-.. code:: go
-
-   func add(x, y int) (int, error) {
-       return x + y, nil
-   }
-
-   func main() {
-       if err := juice.RegisterEvalFunc("add", add); err != nil {
-           panic(err)
-       }
-   }
-
-In Juice, the function can be used like this:
-
-.. code:: xml
-
-   <if test='add(1, 2) == 3'>
-   </if>
-
-Passing Function Calls
-----------------------
-
-Juice supports passing function calls as parameters, for example:
-
-.. code-block:: xml
-
-   <if test='MyFunc() == "eatmoreapple"'>
-   </if>
-
-.. code-block:: go
-
-   func MyFunc() (string, error) {
-       return "eatmoreapple", nil
-   }
-
-   param := juice.H{
-       "MyFunc": MyFunc,
-   }
-
-* With parameters function:
-
-.. code-block:: xml
-
-   <if test='MyFunc("eatmoreapple") == "eatmoreapple"'>
-   </if>
-
-.. code-block:: go
-
-   func MyFunc(str string) (string, error) {
-       return str, nil
-   }
-
-   param := juice.H{
-       "MyFunc": MyFunc,
-   }
-
-* Passing function parameters:
-
-.. code-block:: xml
-
-   <if test='MyFunc(eatmoreapple) == "eatmoreapple"'>
-   </if>
-
-.. code-block:: go
-
-   func MyFunc(str string) (string, error) {
-       return str, nil
-   }
-
-   param := juice.H{
-       "MyFunc": MyFunc,
-       "eatmoreapple": "eatmoreapple",
-   }
-
-* Multiple parameters:
-
-.. code-block:: xml
-
-   <if test='MyFunc(eatmoreapple, 1, 2) == "eatmoreapple"'>
-   </if>
-
-.. code-block:: go
-
-   func MyFunc(str string, x, y int) (string, error) {
-       return str, nil
-   }
-
-   param := juice.H{
-       "MyFunc": MyFunc,
-       "eatmoreapple": "eatmoreapple",
-   }
-
-Custom Type Method Calls
-------------------------
-
-Juice supports the invocation of custom type methods when passing parameters:
-
-.. code-block:: xml
-
-   <if test='a.MyFunc() == "eatmoreapple"'>
-   </if>
-
-.. code-block:: go
-
-   type A struct {
-       Name string
-   }
-
-   func (a *A) MyFunc() (string, error) {
-       return a.Name, nil
-   }
-
-   param := juice.H{
-       "a": &A{Name: "eatmoreapple"},
-   }
-
-.. attention:: When passing function calls, the function must return two values, the first of any type and the second of error type.
-
-Property Access
----------------
-
-Juice supports accessing properties of custom types when passing parameters:
-
-.. code-block:: xml
-
-   <if test='a.Name == "eatmoreapple"'>
-   </if>
-
-.. code-block:: go
-
-   type A struct {
-       Name string
-   }
-
-   param := juice.H{
-       "a": &A{Name: "eatmoreapple"},
-   }
-
-Map Index Access
-----------------
-
-.. code-block:: go
-
-   param := juice.H{
-       "a": juice.H{
-           "Name": "eatmoreapple",
-       },
-   }
-
-.. code-block:: xml
-
-   <if test='a["Name"] == "eatmoreapple"'>
-   </if>
-
-This XML can also be written as follows:
-
-.. code-block:: xml
-
-   <if test='a.Name == "eatmoreapple"'>
-   </if>
-
-What is the difference between these two methods?
-
-Index access returns the default value of the map when the corresponding key does not exist, while the `a.Name` format will throw an exception if `Name` does not exist. Using the `a.Name` format supports method calls, for example:
-
-.. code-block:: go
-
-   type A map[string]string
-
-   func (a *A) MyFunc() (string, error) {
-       return "eatmoreapple", nil
-   }
-
-   param := juice.H{
-       "a": A{"hello": "world"},
-   }
-
-.. code-block:: xml
-
-   <if test='a.MyFunc() == "eatmoreapple"'>
-   </if>
-   <if test="a.hello == 'world'">
-   </if>
-
-Array Index Access
+The following keywords are reserved and cannot be used as variable names:
+
+1. ``true``
+2. ``false``
+3. ``nil``
+4. ``and``
+5. ``or``
+
+Built-In Functions
 ------------------
 
-.. code-block:: xml
+Juice includes several built-in functions:
 
-   <if test='a[0] == "eatmoreapple"'>
-   </if>
+1. ``length``: returns the length of a string, array, slice, or map
+
+   .. code-block::
+
+      func length[T slice|map|string](T) int
+
+2. ``substr``: returns a substring
+
+   .. code-block::
+
+      func substr(string, int, int) string
+
+3. ``join``: joins a string array or slice with a separator
+
+   .. code-block::
+
+      func join[T slice](T, string) string
+
+4. ``contains``: checks whether a value contains a given element
+
+   .. code-block::
+
+      func contains[T slice|map|string](T, interface{}) bool
+
+5. ``slice``: performs slicing
+
+   .. code-block::
+
+      func slice[T slice](T, int, int) T
+
+6. ``title``: capitalizes the first letter
+
+   .. code-block::
+
+      func title(string) string
+
+7. ``lower``: converts to lowercase
+
+   .. code-block::
+
+      func lower(string) string
+
+8. ``upper``: converts to uppercase
+
+   .. code-block::
+
+      func upper(string) string
+
+Custom Functions
+----------------
+
+Registration requirements:
+
+1. It must be a function.
+2. It must return two values. The first can be any type and the second must be ``error``.
+
+Example:
 
 .. code-block:: go
 
-   param := juice.H{
-       "a": []string{"eatmoreapple"},
-   }
+    func add(x, y int) (int, error) {
+        return x + y, nil
+    }
+
+    func main() {
+        if err := juice.RegisterEvalFunc("add", add); err != nil {
+            panic(err)
+        }
+    }
+
+Usage:
+
+.. code-block:: xml
+
+    <if test='add(1, 2) == 3'>
+    </if>
+
+Function Calls
+--------------
+
+Basic function call:
+
+.. code-block:: xml
+
+    <if test='MyFunc() == "eatmoreapple"'>
+    </if>
+
+.. code-block:: go
+
+    func MyFunc() (string, error) {
+        return "eatmoreapple", nil
+    }
+
+    param := juice.H{
+        "MyFunc": MyFunc,
+    }
+
+Function with parameters:
+
+.. code-block:: xml
+
+    <if test='MyFunc("eatmoreapple") == "eatmoreapple"'>
+    </if>
+
+.. code-block:: go
+
+    func MyFunc(str string) (string, error) {
+        return str, nil
+    }
+
+    param := juice.H{
+        "MyFunc": MyFunc,
+    }
+
+Referencing parameters:
+
+.. code-block:: xml
+
+    <if test='MyFunc(eatmoreapple) == "eatmoreapple"'>
+    </if>
+
+.. code-block:: go
+
+    param := juice.H{
+        "MyFunc": MyFunc,
+        "eatmoreapple": "eatmoreapple",
+    }
+
+Multiple parameters:
+
+.. code-block:: xml
+
+    <if test='MyFunc(eatmoreapple, 1, 2) == "eatmoreapple"'>
+    </if>
+
+.. code-block:: go
+
+    func MyFunc(str string, x, y int) (string, error) {
+        return str, nil
+    }
+
+Methods on Custom Types
+-----------------------
+
+Method calls:
+
+.. code-block:: xml
+
+    <if test='a.MyFunc() == "eatmoreapple"'>
+    </if>
+
+.. code-block:: go
+
+    type A struct {
+        Name string
+    }
+
+    func (a *A) MyFunc() (string, error) {
+        return a.Name, nil
+    }
+
+    param := juice.H{
+        "a": &A{Name: "eatmoreapple"},
+    }
+
+Attribute Access
+----------------
+
+Struct fields:
+
+.. code-block:: xml
+
+    <if test='a.Name == "eatmoreapple"'>
+    </if>
+
+.. code-block:: go
+
+    type A struct {
+        Name string
+    }
+
+    param := juice.H{
+        "a": &A{Name: "eatmoreapple"},
+    }
+
+Map Operations
+--------------
+
+Indexed access:
+
+.. code-block:: go
+
+    param := juice.H{
+        "a": juice.H{
+            "Name": "eatmoreapple",
+        },
+    }
+
+.. code-block:: xml
+
+    <if test='a["Name"] == "eatmoreapple"'>
+    </if>
+
+    <if test='a.Name == "eatmoreapple"'>
+    </if>
+
+.. attention::
+
+    Difference between the two forms:
+
+    1. Indexed access such as ``a["Name"]`` returns a default value when the key is missing.
+    2. Dot access such as ``a.Name`` throws an error when the property is missing.
+    3. Dot access also supports method calls.
+
+Array Operations
+----------------
+
+.. code-block:: xml
+
+    <if test='a[0] == "eatmoreapple"'>
+    </if>
+
+.. code-block:: go
+
+    param := juice.H{
+        "a": []string{"eatmoreapple"},
+    }
 
 .. tip::
-    **Best Practices**:
 
-    1. Keep expressions simple and clear.
-    2. Handle complex logic in Go code.
+    Best practices:
+
+    1. Keep expressions simple and readable.
+    2. Move complex logic into Go code when possible.
     3. Use built-in functions appropriately.
-    4. Pay attention to XML special character escaping.
-    5. Test all condition branches.
+    4. Pay attention to XML escaping rules.
+    5. Test every condition branch.

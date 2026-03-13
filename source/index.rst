@@ -514,8 +514,11 @@ Detailed Documentation
 
    configuration
    mappers
+   security
    result_mapping
    tx
+   tx_semantics
+   multi_source_tx
    dynamic_sql
    expr
    raw_sql
@@ -525,6 +528,7 @@ Detailed Documentation
    :maxdepth: 2
    :caption: Advanced Features
 
+   e2e_best_practice
    code_generate
    extension
    idea-plugin

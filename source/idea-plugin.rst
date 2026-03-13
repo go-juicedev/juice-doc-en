@@ -4,7 +4,7 @@ GoLand Plugin
 Introduction
 ------------
 
-The Juice GoLand Plugin is an IDE tool specifically designed for the Juice framework. It significantly improves development efficiency and user experience by providing features like intelligent navigation and auto-completion, allowing developers to switch easily between XML configuration and Go code.
+The Juice GoLand plugin is an IDE tool built specifically for the Juice framework. It improves development efficiency by providing smart navigation, auto-completion, syntax awareness, and related editor support across XML configuration and Go code.
 
 Preview
 -------
@@ -17,100 +17,111 @@ Preview
 Installation
 ------------
 
-There are two ways to install the Juice GoLand Plugin:
+There are two ways to install the Juice GoLand plugin:
 
-1. Install via IDE Plugin Marketplace
-   - Open GoLand IDE
-   - Go to Settings/Preferences -> Plugins
-   - Switch to the Marketplace tab
-   - Search for "Juice"
-   - Click the Install button
+1. Install from the IDE marketplace
 
-2. Manual Installation
-   - Download the latest version of the plugin package (.zip file) from the GitHub Release page
-   - Open GoLand IDE
-   - Go to Settings/Preferences -> Plugins
-   - Click the gear icon and select "Install Plugin from Disk"
-   - Select the downloaded plugin package to install
+   - Open GoLand.
+   - Go to `Settings/Preferences -> Plugins`.
+   - Switch to the `Marketplace` tab.
+   - Search for ``Juice``.
+   - Click ``Install``.
+
+2. Install manually
+
+   - Download the latest plugin package from the GitHub Releases page.
+   - Open GoLand.
+   - Go to `Settings/Preferences -> Plugins`.
+   - Click the gear icon and choose ``Install Plugin from Disk``.
+   - Select the downloaded plugin archive.
 
 Main Features
 -------------
 
-1. Intelligent Navigation
-   - XML to Go Interface Jump: Ctrl/Cmd + Click on the interface name in the XML file to jump to the corresponding Go interface definition.
-   - Go Interface to XML Reverse Jump: Use Alt + B or the right-click menu at the Go interface definition to jump to the corresponding XML configuration.
+1. Smart navigation
 
-2. Auto-Completion
-   - XML Namespace Auto-Completion: Automatically hints and completes namespaces while typing.
-   - Interface Method Completion: Provides intelligent hints and completion when writing methods in XML.
-   - Parameter Name Completion: Automatically completes method parameter names.
+   - Jump from XML to the corresponding Go interface definition by Ctrl/Cmd-clicking the interface reference.
+   - Jump back from Go interfaces to XML with ``Alt + B`` or the context menu.
 
-3. Syntax Highlighting
-   - SQL syntax highlighting in XML files.
-   - Syntax highlighting for configuration tags and attributes.
-   - Error syntax hints.
+2. Auto-completion
 
-4. Code Inspection
-   - XML configuration file syntax check.
-   - Interface method signature matching check.
-   - Namespace correctness verification.
+   - Namespace auto-completion in XML
+   - Method completion for interface methods
+   - Parameter name completion
+
+3. Syntax highlighting
+
+   - SQL highlighting inside XML
+   - Highlighting for tags and attributes
+   - Error indication for invalid syntax
+
+4. Inspections
+
+   - XML configuration syntax checks
+   - Interface signature matching checks
+   - Namespace validation
 
 Usage Examples
 --------------
 
-1. XML to Go Interface Jump Example:
+1. Jump from XML to a Go interface:
 
 .. code-block:: xml
 
     <mapper namespace="github.com.example.repo.UserMapper">
-        <!-- Ctrl/Cmd + Click on the namespace value to jump to the UserMapper interface definition -->
+        <!-- Ctrl/Cmd-click the namespace to jump to UserMapper -->
     </mapper>
 
-2. Namespace Auto-Completion:
+2. Namespace auto-completion:
 
 .. code-block:: xml
 
-    <mapper namespace="github.com.example.repo.UserM"> <!-- Automatically suggests available namespaces while typing -->
+    <mapper namespace="github.com.example.repo.UserM">
+        <!-- The IDE suggests matching namespaces while typing -->
+    </mapper>
 
-3. SQL Syntax Highlighting:
+3. SQL syntax highlighting:
 
 .. code-block:: xml
 
-    <select id="getUserById">
-        SELECT * FROM users WHERE id = #{id} <!-- SQL statement syntax highlighting -->
+    <select id="GetUserById">
+        SELECT * FROM users WHERE id = #{id}
     </select>
 
 Shortcuts
 ---------
 
-- Ctrl/Cmd + Click: Jump to definition
-- Alt + B: Find usages / jump to XML
-- Ctrl/Cmd + Space: Trigger auto-completion
-- Alt + Enter: Show intention actions and quick fixes
+- ``Ctrl/Cmd + Click``: go to definition
+- ``Alt + B``: find usages or navigate to related definitions
+- ``Ctrl/Cmd + Space``: trigger auto-completion
+- ``Alt + Enter``: show intentions and quick fixes
 
-FAQ
----
+Common Issues
+-------------
 
-1. Plugin installation failed
-   - Ensure GoLand version compatibility (supports 2023.1 and above).
-   - Check if network connection is normal.
-   - Try the manual installation method.
+1. The plugin cannot be installed
 
-2. Navigation function not working
-   - Ensure the project has GOPATH configured correctly.
-   - Check if the namespace in the XML file is correct.
-   - Ensure the Go interface file has been imported correctly.
+   - Make sure your GoLand version is supported, typically 2023.1 or later.
+   - Check network connectivity.
+   - Try manual installation.
 
-3. Auto-completion not working
-   - Check if auto-completion functionality is enabled.
-   - Ensure project indexing is complete.
-   - Try rebuilding the project index.
+2. Navigation does not work
 
-Feedback & Support
-------------------
+   - Make sure the project is configured correctly.
+   - Check that the namespace in the XML file is correct.
+   - Make sure the Go interface file is available and indexed.
 
-If you encounter any issues or have suggestions for improvement during use, please feel free to provide feedback via:
+3. Auto-completion does not work
 
-- Submit an Issue on the GitHub project
-- Feedback through the official documentation comments section
-- Send an email to the support mailbox
+   - Check that code completion is enabled.
+   - Make sure indexing has finished.
+   - Try rebuilding the IDE index.
+
+Feedback and Support
+--------------------
+
+If you run into issues or have suggestions for improvement, you can provide feedback through:
+
+- a GitHub issue on the project repository
+- the official documentation feedback channel
+- the support email address
